@@ -1,8 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
@@ -56,6 +58,7 @@ const UserManagement = () => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
+  const [editPassword, setEditPassword] = useState('');
   const [newUser, setNewUser] = useState({
     username: '',
     email: '',
@@ -261,12 +264,14 @@ const UserManagement = () => {
         </CardContent>
         <CardFooter className="flex justify-between items-center">
           <div></div>
-          <DialogTrigger asChild>
-            <Button>
-              <UserPlus className="h-4 w-4 mr-2" />
-              Add User
-            </Button>
-          </DialogTrigger>
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <UserPlus className="h-4 w-4 mr-2" />
+                Add User
+              </Button>
+            </DialogTrigger>
+          </Dialog>
         </CardFooter>
       </Card>
 
@@ -382,7 +387,8 @@ const UserManagement = () => {
                   id="password"
                   type="password"
                   placeholder="Enter new password"
-                  onChange={(e) => setSelectedUser({ ...selectedUser, password: e.target.value })}
+                  value={editPassword}
+                  onChange={(e) => setEditPassword(e.target.value)}
                 />
               </div>
             </div>
@@ -393,6 +399,7 @@ const UserManagement = () => {
             </Button>
             <Button onClick={() => updateUser(selectedUser!.id, {
               role: selectedUser!.role,
+              ...(editPassword && { password: editPassword })
             })} disabled={isLoading}>
               {isLoading ? "Updating..." : "Update User"}
             </Button>
