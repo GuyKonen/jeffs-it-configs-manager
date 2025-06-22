@@ -21,6 +21,8 @@ const UserProfile = () => {
 
   const displayName = user.auth_type === 'username' 
     ? user.username 
+    : user.auth_type === 'oidc'
+    ? (user.display_name || user.email || 'User')
     : (user.display_name || user.email || 'User');
   
   const displayEmail = user.auth_type === 'username' 
@@ -35,6 +37,8 @@ const UserProfile = () => {
             <Shield className="h-4 w-4" />
           ) : user.auth_type === 'entra' ? (
             <Building className="h-4 w-4" />
+          ) : user.auth_type === 'oidc' ? (
+            <Shield className="h-4 w-4" />
           ) : (
             <User className="h-4 w-4" />
           )}
@@ -49,6 +53,9 @@ const UserProfile = () => {
           )}
           {user.auth_type === 'entra' && (
             <Building className="h-3 w-3 ml-1 text-blue-500" />
+          )}
+          {user.auth_type === 'oidc' && (
+            <Shield className="h-3 w-3 ml-1 text-green-500" />
           )}
         </p>
         <p className="text-xs text-slate-500 truncate">

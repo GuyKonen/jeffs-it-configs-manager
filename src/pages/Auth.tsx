@@ -1,25 +1,50 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Settings, User, Building } from 'lucide-react';
+import { Settings, User, Building, Shield } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 
 const Auth = () => {
-  const { signInWithUsername, signInWithEntra, user, loading } = useAuth();
+  const { signInWithUsername, signInWithEntra, signInWithOIDC, handleOIDCCallback, user, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [entraEmail, setEntraEmail] = useState('');
   const [entraPassword, setEntraPassword] = useState('');
   const [isSigningIn, setIsSigningIn] = useState(false);
+
+  useEffect(() => {
+    // Handle OIDC callback
+    const urlParams = new URLSearchParams(location.search);
+    const code = urlParams.get('code');
+    const state = urlParams.get('state');
+    
+    if (code && state) {
+      handleOIDCCallback(code, state).then(({ error }) => {
+        if (error) {
+          toast({
+            title: "Authentication Failed",
+            description: error,
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Welcome!",
+            description: "Successfully signed in with Microsoft.",
+          });
+          navigate('/');
+        }
+      });
+    }
+  }, [location, handleOIDCCallback, toast, navigate]);
 
   useEffect(() => {
     if (user && !loading) {
@@ -85,6 +110,21 @@ const Auth = () => {
     setIsSigningIn(false);
   };
 
+  const handleOIDCSignIn = async () => {
+    setIsSigningIn(true);
+    const { error } = await signInWithOIDC();
+    
+    if (error) {
+      toast({
+        title: "Authentication Failed",
+        description: error,
+        variant: "destructive",
+      });
+      setIsSigningIn(false);
+    }
+    // Note: Don't set isSigningIn to false here as we're redirecting
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
@@ -118,12 +158,29 @@ const Auth = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="entra" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="entra">Microsoft Entra</TabsTrigger>
+            <Tabs defaultValue="oidc" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="oidc">Microsoft SSO</TabsTrigger>
+                <TabsTrigger value="entra">Entra Login</TabsTrigger>
                 <TabsTrigger value="admin">Admin</TabsTrigger>
               </TabsList>
               
+              <TabsContent value="oidc" className="space-y-4 mt-4">
+                <div className="space-y-4">
+                  <p className="text-sm text-slate-600 text-center">
+                    Sign in securely with your Microsoft organizational account
+                  </p>
+                  <Button
+                    onClick={handleOIDCSignIn}
+                    className="w-full"
+                    disabled={isSigningIn}
+                  >
+                    <Shield className="h-4 w-4 mr-2" />
+                    {isSigningIn ? 'Redirecting...' : 'Sign in with Microsoft SSO'}
+                  </Button>
+                </div>
+              </TabsContent>
+
               <TabsContent value="entra" className="space-y-4 mt-4">
                 <form onSubmit={handleEntraSignIn} className="space-y-4">
                   <div className="space-y-2">
