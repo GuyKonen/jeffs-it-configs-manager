@@ -3,11 +3,22 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
+interface CustomUser {
+  id: string;
+  email?: string;
+  username?: string;
+  role?: string;
+  user_metadata?: any;
+  auth_type: 'supabase' | 'username';
+}
+
 interface AuthContextType {
-  user: User | null;
+  user: CustomUser | null;
   session: Session | null;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
+  signInWithMicrosoft: () => Promise<void>;
+  signInWithUsername: (username: string, password: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
 }
 
@@ -22,24 +33,54 @@ export const useAuth = () => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<CustomUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener first
+    // Check for username auth first
+    const usernameAuth = localStorage.getItem('username_auth');
+    if (usernameAuth) {
+      const userData = JSON.parse(usernameAuth);
+      setUser({
+        id: userData.id,
+        username: userData.username,
+        role: userData.role,
+        auth_type: 'username'
+      });
+      setLoading(false);
+      return;
+    }
+
+    // Set up Supabase auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
-        setUser(session?.user ?? null);
+        if (session?.user) {
+          setUser({
+            id: session.user.id,
+            email: session.user.email,
+            user_metadata: session.user.user_metadata,
+            auth_type: 'supabase'
+          });
+        } else {
+          setUser(null);
+        }
         setLoading(false);
       }
     );
 
-    // Then check for existing session
+    // Check for existing Supabase session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      setUser(session?.user ?? null);
+      if (session?.user) {
+        setUser({
+          id: session.user.id,
+          email: session.user.email,
+          user_metadata: session.user.user_metadata,
+          auth_type: 'supabase'
+        });
+      }
       setLoading(false);
     });
 
@@ -59,11 +100,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
+  const signInWithMicrosoft = async () => {
+    const redirectUrl = `${window.location.origin}/`;
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'azure',
+      options: {
+        redirectTo: redirectUrl
+      }
+    });
     if (error) {
-      console.error('Error signing out:', error);
+      console.error('Error signing in with Microsoft:', error);
     }
+  };
+
+  const signInWithUsername = async (username: string, password: string) => {
+    try {
+      const response = await supabase.functions.invoke('auth-username', {
+        body: { username, password, action: 'login' }
+      });
+
+      if (response.error || !response.data?.success) {
+        return { error: response.data?.error || 'Authentication failed' };
+      }
+
+      const userData = response.data.user;
+      localStorage.setItem('username_auth', JSON.stringify(userData));
+      
+      setUser({
+        id: userData.id,
+        username: userData.username,
+        role: userData.role,
+        auth_type: 'username'
+      });
+
+      return {};
+    } catch (error) {
+      console.error('Username auth error:', error);
+      return { error: 'Authentication failed' };
+    }
+  };
+
+  const signOut = async () => {
+    localStorage.removeItem('username_auth');
+    
+    if (session) {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Error signing out:', error);
+      }
+    }
+    
+    setUser(null);
+    setSession(null);
   };
 
   const value = {
@@ -71,6 +159,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     session,
     loading,
     signInWithGoogle,
+    signInWithMicrosoft,
+    signInWithUsername,
     signOut
   };
 

@@ -1,15 +1,23 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Settings, Chrome } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { Settings, Chrome, User, Building } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
 
 const Auth = () => {
-  const { signInWithGoogle, user, loading } = useAuth();
+  const { signInWithGoogle, signInWithMicrosoft, signInWithUsername, user, loading } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [isSigningIn, setIsSigningIn] = useState(false);
 
   useEffect(() => {
     if (user && !loading) {
@@ -19,6 +27,39 @@ const Auth = () => {
 
   const handleGoogleSignIn = async () => {
     await signInWithGoogle();
+  };
+
+  const handleMicrosoftSignIn = async () => {
+    await signInWithMicrosoft();
+  };
+
+  const handleUsernameSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!username || !password) {
+      toast({
+        title: "Missing Information",
+        description: "Please enter both username and password.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSigningIn(true);
+    const { error } = await signInWithUsername(username, password);
+    
+    if (error) {
+      toast({
+        title: "Authentication Failed",
+        description: error,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Welcome!",
+        description: "Successfully signed in.",
+      });
+    }
+    setIsSigningIn(false);
   };
 
   if (loading) {
@@ -50,18 +91,71 @@ const Auth = () => {
           <CardHeader className="text-center">
             <CardTitle className="text-xl">Welcome Back</CardTitle>
             <CardDescription>
-              Sign in with your Google account to continue
+              Choose your preferred sign-in method
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Button
-              onClick={handleGoogleSignIn}
-              className="w-full h-12 text-base font-medium bg-white hover:bg-gray-50 text-gray-900 border border-gray-300 shadow-sm"
-              variant="outline"
-            >
-              <Chrome className="h-5 w-5 mr-3 text-blue-500" />
-              Sign in with Google
-            </Button>
+            {/* Username/Password Form */}
+            <form onSubmit={handleUsernameSignIn} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="username">Username</Label>
+                <Input
+                  id="username"
+                  type="text"
+                  placeholder="Enter your username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isSigningIn}
+              >
+                <User className="h-4 w-4 mr-2" />
+                {isSigningIn ? 'Signing in...' : 'Sign in with Username'}
+              </Button>
+            </form>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <Separator className="w-full" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-white px-2 text-muted-foreground">Or continue with</span>
+              </div>
+            </div>
+
+            {/* OAuth Buttons */}
+            <div className="space-y-2">
+              <Button
+                onClick={handleGoogleSignIn}
+                className="w-full h-12 text-base font-medium bg-white hover:bg-gray-50 text-gray-900 border border-gray-300 shadow-sm"
+                variant="outline"
+              >
+                <Chrome className="h-5 w-5 mr-3 text-blue-500" />
+                Sign in with Google
+              </Button>
+              
+              <Button
+                onClick={handleMicrosoftSignIn}
+                className="w-full h-12 text-base font-medium bg-white hover:bg-gray-50 text-gray-900 border border-gray-300 shadow-sm"
+                variant="outline"
+              >
+                <Building className="h-5 w-5 mr-3 text-blue-600" />
+                Sign in with Microsoft
+              </Button>
+            </div>
             
             <p className="text-sm text-slate-500 text-center mt-6">
               By signing in, you agree to securely store and manage your IT configurations

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -12,6 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import UserProfile from '@/components/UserProfile';
+import UserManagement from '@/components/UserManagement';
 
 const Index = () => {
   const { toast } = useToast();
@@ -124,6 +124,9 @@ const Index = () => {
       <div className="max-w-4xl mx-auto space-y-8">
         {/* User Profile */}
         <UserProfile />
+
+        {/* User Management - Only show for admins */}
+        {user.role === 'admin' && <UserManagement />}
 
         {/* Header */}
         <div className="text-center space-y-4">
