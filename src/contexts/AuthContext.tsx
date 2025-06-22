@@ -9,7 +9,7 @@ interface CustomUser {
   username?: string;
   role?: string;
   user_metadata?: any;
-  auth_type: 'supabase' | 'username';
+  auth_type: 'supabase' | 'username' | 'azure';
 }
 
 interface AuthContextType {
@@ -18,6 +18,7 @@ interface AuthContextType {
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
   signInWithMicrosoft: () => Promise<void>;
+  signInWithAzure: (email: string, password: string) => Promise<{ error?: string }>;
   signInWithUsername: (username: string, password: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
 }
@@ -47,6 +48,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         username: userData.username,
         role: userData.role,
         auth_type: 'username'
+      });
+      setLoading(false);
+      return;
+    }
+
+    // Check for Azure auth
+    const azureAuth = localStorage.getItem('azure_auth');
+    if (azureAuth) {
+      const userData = JSON.parse(azureAuth);
+      setUser({
+        id: userData.id,
+        email: userData.email,
+        role: userData.role,
+        auth_type: 'azure'
       });
       setLoading(false);
       return;
@@ -116,6 +131,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const signInWithAzure = async (email: string, password: string) => {
+    try {
+      const response = await supabase.functions.invoke('azure-auth', {
+        body: { email, password, action: 'login' }
+      });
+
+      if (response.error || !response.data?.success) {
+        return { error: response.data?.error || 'Azure authentication failed' };
+      }
+
+      const userData = response.data.user;
+      localStorage.setItem('azure_auth', JSON.stringify(userData));
+      
+      setUser({
+        id: userData.id,
+        email: userData.email,
+        role: userData.role,
+        auth_type: 'azure'
+      });
+
+      return {};
+    } catch (error) {
+      console.error('Azure auth error:', error);
+      return { error: 'Azure authentication failed' };
+    }
+  };
+
   const signInWithUsername = async (username: string, password: string) => {
     try {
       const response = await supabase.functions.invoke('auth-username', {
@@ -145,6 +187,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     localStorage.removeItem('username_auth');
+    localStorage.removeItem('azure_auth');
     
     if (session) {
       const { error } = await supabase.auth.signOut();
@@ -163,6 +206,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loading,
     signInWithGoogle,
     signInWithMicrosoft,
+    signInWithAzure,
     signInWithUsername,
     signOut
   };

@@ -1,327 +1,425 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Users, Plus, Edit, Trash2 } from 'lucide-react';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { useToast } from "@/hooks/use-toast"
+import { Settings, Trash2, User, UserPlus, Pencil } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
-interface User {
+interface UserData {
   id: string;
-  username: string;
-  role: 'admin' | 'user';
+  username: string | null;
+  email: string | null;
+  role: string;
   created_at: string;
   is_active: boolean;
 }
 
 const UserManagement = () => {
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [formData, setFormData] = useState({
+  const [users, setUsers] = useState<UserData[]>([]);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
+  const [newUser, setNewUser] = useState({
     username: '',
+    email: '',
     password: '',
-    role: 'user' as 'admin' | 'user',
-    authType: 'username' as 'username' | 'microsoft'
+    role: 'user',
+    authType: 'username'
   });
+  const { toast } = useToast();
+  const { user } = useAuth();
 
   const fetchUsers = async () => {
+    setIsLoading(true);
     try {
       const response = await supabase.functions.invoke('user-management', {
-        body: { action: 'list', currentUser: user?.username }
+        body: { action: 'list', currentUser: user?.username || user?.email }
       });
 
-      if (response.error) {
-        throw new Error(response.error.message);
+      if (response.error || !response.data?.users) {
+        throw new Error(response.data?.error || 'Failed to fetch users');
       }
 
-      setUsers(response.data.users || []);
-    } catch (error) {
-      console.error('Error fetching users:', error);
+      setUsers(response.data.users);
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to fetch users.",
+        description: error.message,
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    if (user?.role === 'admin') {
-      fetchUsers();
-    }
-  }, [user]);
+    fetchUsers();
+  }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!formData.username) {
-      toast({
-        title: "Missing Information",
-        description: "Username is required.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!editingUser && !formData.password && formData.authType === 'username') {
-      toast({
-        title: "Missing Information",
-        description: "Password is required for new username-based users.",
-        variant: "destructive",
-      });
-      return;
-    }
-
+  const updateUser = async (userId: string, userData: { password?: string; role?: string }) => {
     try {
-      const action = editingUser ? 'update' : 'create';
-      const body: any = {
-        action,
-        username: formData.username,
-        role: formData.role,
-        authType: formData.authType,
-        currentUser: user?.username
-      };
-
-      if (formData.password && formData.authType === 'username') {
-        body.password = formData.password;
-      }
-
-      if (editingUser) {
-        body.userId = editingUser.id;
-      }
-
-      const response = await supabase.functions.invoke('user-management', { body });
-
-      if (response.error) {
-        throw new Error(response.error.message);
-      }
-
-      toast({
-        title: "Success",
-        description: `User ${editingUser ? 'updated' : 'created'} successfully.`,
-      });
-
-      setIsDialogOpen(false);
-      setEditingUser(null);
-      setFormData({ username: '', password: '', role: 'user', authType: 'username' });
-      fetchUsers();
-    } catch (error) {
-      console.error('Error saving user:', error);
-      toast({
-        title: "Error",
-        description: `Failed to ${editingUser ? 'update' : 'create'} user.`,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDelete = async (userId: string) => {
-    if (!confirm('Are you sure you want to delete this user?')) {
-      return;
-    }
-
-    try {
+      setIsLoading(true);
       const response = await supabase.functions.invoke('user-management', {
-        body: { action: 'delete', userId, currentUser: user?.username }
+        body: {
+          action: 'update',
+          userId,
+          ...userData,
+          currentUser: user?.username || user?.email
+        }
       });
 
-      if (response.error) {
-        throw new Error(response.error.message);
+      if (response.error || !response.data?.success) {
+        throw new Error(response.data?.error || 'Failed to update user');
       }
 
       toast({
         title: "Success",
-        description: "User deleted successfully.",
+        description: "User updated successfully",
       });
 
       fetchUsers();
-    } catch (error) {
-      console.error('Error deleting user:', error);
+      setIsEditDialogOpen(false);
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to delete user.",
+        description: error.message,
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const openEditDialog = (userToEdit: User) => {
-    setEditingUser(userToEdit);
-    setFormData({
-      username: userToEdit.username,
-      password: '',
-      role: userToEdit.role,
-      authType: 'username'
-    });
-    setIsDialogOpen(true);
+  const deleteUser = async (userId: string) => {
+    try {
+      setIsLoading(true);
+      const response = await supabase.functions.invoke('user-management', {
+        body: {
+          action: 'delete',
+          userId,
+          currentUser: user?.username || user?.email
+        }
+      });
+
+      if (response.error || !response.data?.success) {
+        throw new Error(response.data?.error || 'Failed to delete user');
+      }
+
+      toast({
+        title: "Success",
+        description: "User deleted successfully",
+      });
+
+      fetchUsers();
+      setIsDeleteDialogOpen(false);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const openCreateDialog = () => {
-    setEditingUser(null);
-    setFormData({ username: '', password: '', role: 'user', authType: 'username' });
-    setIsDialogOpen(true);
-  };
+  const createUser = async (userData: { username?: string; email?: string; password: string; role: string; authType: string }) => {
+    try {
+      setIsLoading(true);
+      
+      let response;
+      if (userData.authType === 'azure') {
+        response = await supabase.functions.invoke('azure-management', {
+          body: {
+            action: 'create',
+            email: userData.email,
+            password: userData.password,
+            role: userData.role,
+            currentUser: user?.username || user?.email
+          }
+        });
+      } else {
+        response = await supabase.functions.invoke('user-management', {
+          body: {
+            action: 'create',
+            username: userData.username,
+            password: userData.password,
+            role: userData.role,
+            currentUser: user?.username || user?.email
+          }
+        });
+      }
 
-  if (user?.role !== 'admin') {
-    return null;
-  }
+      if (response.error || !response.data?.success) {
+        throw new Error(response.data?.error || 'Failed to create user');
+      }
+
+      toast({
+        title: "Success",
+        description: `${userData.authType === 'azure' ? 'Azure user' : 'User'} created successfully`,
+      });
+
+      fetchUsers();
+      setNewUser({ username: '', email: '', password: '', role: 'user', authType: 'username' });
+      setIsCreateDialogOpen(false);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
-    <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Users className="h-6 w-6 text-blue-500" />
-            <CardTitle className="text-xl">User Management</CardTitle>
-          </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={openCreateDialog}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add User
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{editingUser ? 'Edit User' : 'Create New User'}</DialogTitle>
-                <DialogDescription>
-                  {editingUser ? 'Update user information' : 'Add a new user to the system'}
-                </DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="username">Username</Label>
-                  <Input
-                    id="username"
-                    value={formData.username}
-                    onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
-                    placeholder="Enter username"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="authType">Authentication Type</Label>
-                  <Select value={formData.authType} onValueChange={(value: 'username' | 'microsoft') => setFormData(prev => ({ ...prev, authType: value }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select authentication type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="username">Username/Password</SelectItem>
-                      <SelectItem value="microsoft">Microsoft SAML</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                {formData.authType === 'username' && (
-                  <div className="space-y-2">
-                    <Label htmlFor="password">
-                      Password {editingUser && '(leave blank to keep current)'}
-                    </Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      value={formData.password}
-                      onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                      placeholder="Enter password"
-                    />
-                  </div>
-                )}
-                <div className="space-y-2">
-                  <Label htmlFor="role">Role</Label>
-                  <Select value={formData.role} onValueChange={(value: 'admin' | 'user') => setFormData(prev => ({ ...prev, role: value }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="user">User</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex justify-end space-x-2">
-                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit">
-                    {editingUser ? 'Update' : 'Create'}
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
-        <CardDescription>
-          Manage user accounts and permissions
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <div className="text-center py-4">Loading users...</div>
-        ) : (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Settings className="h-5 w-5 mr-2" />
+            User Management
+          </CardTitle>
+          <CardDescription>Manage users and their roles</CardDescription>
+        </CardHeader>
+        <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Username</TableHead>
                 <TableHead>Role</TableHead>
-                <TableHead>Created</TableHead>
+                <TableHead>Created At</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {users.map((user) => (
                 <TableRow key={user.id}>
-                  <TableCell className="font-medium">{user.username}</TableCell>
-                  <TableCell>
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      user.role === 'admin' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'
-                    }`}>
-                      {user.role}
-                    </span>
-                  </TableCell>
+                  <TableCell>{user.username || user.email}</TableCell>
+                  <TableCell>{user.role}</TableCell>
                   <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
-                  <TableCell>
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      user.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {user.is_active ? 'Active' : 'Inactive'}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openEditDialog(user)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleDelete(user.id)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+                  <TableCell>{user.is_active ? 'Active' : 'Inactive'}</TableCell>
+                  <TableCell className="text-right font-medium">
+                    <Button variant="ghost" size="sm" onClick={() => {
+                      setSelectedUser(user);
+                      setIsEditDialogOpen(true);
+                    }}>
+                      <Pencil className="h-4 w-4 mr-2" />
+                      Edit
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => {
+                      setSelectedUser(user);
+                      setIsDeleteDialogOpen(true);
+                    }}>
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
-        )}
-      </CardContent>
-    </Card>
+        </CardContent>
+        <CardFooter className="flex justify-between items-center">
+          <div></div>
+          <DialogTrigger asChild>
+            <Button>
+              <UserPlus className="h-4 w-4 mr-2" />
+              Add User
+            </Button>
+          </DialogTrigger>
+        </CardFooter>
+      </Card>
+
+      {/* Create User Dialog */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New User</DialogTitle>
+            <DialogDescription>
+              Add a new user to the system with username or Azure authentication.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="auth-type">Authentication Type</Label>
+              <Select value={newUser.authType} onValueChange={(value) => setNewUser({ ...newUser, authType: value })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select authentication type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="username">Username</SelectItem>
+                  <SelectItem value="azure">Azure</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {newUser.authType === 'username' ? (
+              <div className="space-y-2">
+                <Label htmlFor="username">Username</Label>
+                <Input
+                  id="username"
+                  value={newUser.username}
+                  onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
+                  placeholder="Enter username"
+                />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={newUser.email}
+                  onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                  placeholder="Enter Azure email"
+                />
+              </div>
+            )}
+            
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                value={newUser.password}
+                onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                placeholder="Enter password"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="role">Role</Label>
+              <Select value={newUser.role} onValueChange={(value) => setNewUser({ ...newUser, role: value })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="user">User</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => createUser(newUser)} disabled={isLoading}>
+              {isLoading ? "Creating..." : "Create User"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit User Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+            <DialogDescription>
+              Make changes to the selected user's information.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedUser && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="role">Role</Label>
+                <Select
+                  value={selectedUser.role}
+                  onValueChange={(value) => setSelectedUser({ ...selectedUser, role: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="user">User</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">New Password (optional)</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Enter new password"
+                  onChange={(e) => setSelectedUser({ ...selectedUser, password: e.target.value })}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => updateUser(selectedUser!.id, {
+              role: selectedUser!.role,
+            })} disabled={isLoading}>
+              {isLoading ? "Updating..." : "Update User"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete User Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete User</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this user? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={() => deleteUser(selectedUser!.id)} disabled={isLoading}>
+              {isLoading ? "Deleting..." : "Delete User"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 };
 
