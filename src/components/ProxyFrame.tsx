@@ -8,9 +8,47 @@ interface ProxyFrameProps {
   title: string;
   description: string;
   icon: React.ComponentType<{ className?: string }>;
+  fullScreen?: boolean;
+  credentials?: {
+    email: string;
+    password: string;
+  };
 }
 
-const ProxyFrame: React.FC<ProxyFrameProps> = ({ url, title, description, icon: Icon }) => {
+const ProxyFrame: React.FC<ProxyFrameProps> = ({ 
+  url, 
+  title, 
+  description, 
+  icon: Icon, 
+  fullScreen = false,
+  credentials 
+}) => {
+  if (fullScreen) {
+    return (
+      <div className="w-full h-screen">
+        <div className="flex items-center space-x-2 mb-4 px-4">
+          <Icon className="h-6 w-6 text-primary" />
+          <h2 className="text-xl font-semibold">{title}</h2>
+          <ExternalLink className="h-4 w-4 text-muted-foreground ml-auto" />
+        </div>
+        {credentials && (
+          <div className="px-4 mb-2 text-sm text-muted-foreground">
+            Login with: {credentials.email} / {credentials.password}
+          </div>
+        )}
+        <div className="w-full h-full">
+          <iframe 
+            src={url}
+            className="w-full h-full border-0"
+            title={title}
+            sandbox="allow-same-origin allow-scripts allow-forms allow-navigation"
+            allow="fullscreen"
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm h-full">
       <CardHeader className="pb-4">

@@ -35,96 +35,103 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-      <div className="max-w-6xl mx-auto space-y-8">
-        {/* User Profile */}
-        <UserProfile />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+      <div className="max-w-6xl mx-auto">
+        {/* Smaller User Profile */}
+        <div className="p-4">
+          <UserProfile />
+        </div>
 
         {/* Header */}
-        <div className="text-center space-y-4">
-          <div className="flex items-center justify-center space-x-3 mb-4">
-            <div className="p-3 bg-primary rounded-full">
-              <Settings className="h-8 w-8 text-primary-foreground" />
+        <div className="text-center space-y-2 px-6 pb-4">
+          <div className="flex items-center justify-center space-x-3 mb-2">
+            <div className="p-2 bg-primary rounded-full">
+              <Settings className="h-6 w-6 text-primary-foreground" />
             </div>
-            <h1 className="text-4xl font-bold text-slate-800">JeffFromIT</h1>
+            <h1 className="text-3xl font-bold text-slate-800">JeffFromIT</h1>
           </div>
-          <p className="text-xl text-slate-600 max-w-2xl mx-auto">
+          <p className="text-lg text-slate-600">
             AI IT Assistant Configuration Dashboard
-          </p>
-          <p className="text-slate-500">
-            Configure your API keys and settings to automate boring repetitive IT tasks
           </p>
         </div>
 
         {/* Main Tabs */}
         <Tabs defaultValue="config" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 lg:w-fit lg:mx-auto">
-            <TabsTrigger value="config" className="flex items-center gap-2">
-              <Settings className="h-4 w-4" />
-              Config
-            </TabsTrigger>
-            {user.role === 'admin' && (
-              <TabsTrigger value="users" className="flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                Users
+          <div className="px-6">
+            <TabsList className="grid w-full grid-cols-5 lg:w-fit lg:mx-auto">
+              <TabsTrigger value="config" className="flex items-center gap-2">
+                <Settings className="h-4 w-4" />
+                Config
               </TabsTrigger>
-            )}
-            <TabsTrigger value="n8n" className="flex items-center gap-2">
-              <Zap className="h-4 w-4" />
-              N8N
-            </TabsTrigger>
-            <TabsTrigger value="chat" className="flex items-center gap-2">
-              <MessageSquare className="h-4 w-4" />
-              Chat
-            </TabsTrigger>
-            <TabsTrigger value="azure" className="flex items-center gap-2">
-              <Cloud className="h-4 w-4" />
-              Azure
-            </TabsTrigger>
-          </TabsList>
+              {user.role === 'admin' && (
+                <TabsTrigger value="users" className="flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Users
+                </TabsTrigger>
+              )}
+              <TabsTrigger value="n8n" className="flex items-center gap-2">
+                <Zap className="h-4 w-4" />
+                N8N
+              </TabsTrigger>
+              <TabsTrigger value="chat" className="flex items-center gap-2">
+                <MessageSquare className="h-4 w-4" />
+                Chat
+              </TabsTrigger>
+              <TabsTrigger value="azure" className="flex items-center gap-2">
+                <Cloud className="h-4 w-4" />
+                Azure
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
-          <TabsContent value="config" className="mt-8">
+          <TabsContent value="config" className="mt-4 px-6">
             <ConfigurationTabs />
           </TabsContent>
 
           {user.role === 'admin' && (
-            <TabsContent value="users" className="mt-8">
+            <TabsContent value="users" className="mt-4 px-6">
               <UserManagement />
             </TabsContent>
           )}
 
-          <TabsContent value="n8n" className="mt-8">
+          <TabsContent value="n8n" className="mt-4">
             <ProxyFrame 
               url="http://localhost:5678/"
               title="N8N Workflow Automation"
               description="Access your N8N workflow automation interface"
               icon={Zap}
+              fullScreen={true}
             />
           </TabsContent>
 
-          <TabsContent value="chat" className="mt-8">
+          <TabsContent value="chat" className="mt-4">
             <ProxyFrame 
               url="http://localhost:3000/"
               title="Chat Interface"
               description="Access your chat interface"
               icon={MessageSquare}
+              fullScreen={true}
+              credentials={{
+                email: "admin@admin.com",
+                password: "Shalom1234!"
+              }}
             />
           </TabsContent>
 
-          <TabsContent value="azure" className="mt-8">
+          <TabsContent value="azure" className="mt-4">
             <ProxyFrame 
               url="http://localhost:3000/"
               title="Azure Services"
               description="Access your Azure services interface"
               icon={Cloud}
+              fullScreen={true}
+              credentials={{
+                email: "admin@admin.com",
+                password: "Shalom1234!"
+              }}
             />
           </TabsContent>
         </Tabs>
-
-        {/* Footer */}
-        <div className="text-center text-sm text-slate-500 pb-8">
-          <p>JeffFromIT - Automating IT tasks so you don't have to</p>
-        </div>
       </div>
     </div>
   );
