@@ -67,6 +67,22 @@ serve(async (req) => {
       }
       envContent += '\n';
 
+      // SAML Configuration
+      envContent += '# SAML Configuration\n';
+      if (configs.SAML_ENTITY_ID) {
+        envContent += `SAML_ENTITY_ID=${configs.SAML_ENTITY_ID}\n`;
+      }
+      if (configs.SAML_IDP_SSO_URL) {
+        envContent += `SAML_IDP_SSO_URL=${configs.SAML_IDP_SSO_URL}\n`;
+      }
+      if (configs.SAML_IDP_METADATA_URL) {
+        envContent += `SAML_IDP_METADATA_URL=${configs.SAML_IDP_METADATA_URL}\n`;
+      }
+      if (configs.SAML_CERTIFICATE) {
+        envContent += `SAML_CERTIFICATE=${configs.SAML_CERTIFICATE}\n`;
+      }
+      envContent += '\n';
+
       // N8N Configuration
       envContent += '# N8N Configuration\n';
       if (configs.N8N_ENCRYPTION_KEY) {

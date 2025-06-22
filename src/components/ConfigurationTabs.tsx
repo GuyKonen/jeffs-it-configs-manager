@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -6,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
-import { Settings, Key, Zap, MessageSquare, Cloud, Download, User } from 'lucide-react';
+import { Settings, Key, Zap, MessageSquare, Cloud, Download, User, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,6 +19,12 @@ const ConfigurationTabs = () => {
     // Open WebUI Credentials
     OPENWEBUI_EMAIL: 'admin@admin.com',
     OPENWEBUI_PASSWORD: 'Shalom1234!',
+    
+    // SAML Configuration
+    SAML_ENTITY_ID: '',
+    SAML_IDP_SSO_URL: '',
+    SAML_IDP_METADATA_URL: '',
+    SAML_CERTIFICATE: '',
     
     // N8N Configuration
     N8N_ENCRYPTION_KEY: '',
@@ -132,6 +137,77 @@ const ConfigurationTabs = () => {
                 placeholder="Enter password"
                 value={configs.OPENWEBUI_PASSWORD}
                 onChange={(e) => handleInputChange('OPENWEBUI_PASSWORD', e.target.value)}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* SAML Configuration */}
+      <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+        <CardHeader>
+          <div className="flex items-center space-x-2">
+            <Shield className="h-6 w-6 text-indigo-500" />
+            <CardTitle className="text-xl">SAML Authentication</CardTitle>
+          </div>
+          <CardDescription>
+            Configure SAML SSO settings for enterprise authentication
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+            <h4 className="font-medium text-blue-900 mb-2">SAML Service URLs</h4>
+            <div className="space-y-2 text-sm">
+              <div>
+                <strong>Entity ID (Identifier):</strong>
+                <code className="ml-2 px-2 py-1 bg-blue-100 rounded text-blue-800">
+                  {window.location.origin}/supabase/functions/v1/saml-auth/metadata
+                </code>
+              </div>
+              <div>
+                <strong>ACS URL (Reply URL):</strong>
+                <code className="ml-2 px-2 py-1 bg-blue-100 rounded text-blue-800">
+                  {window.location.origin}/supabase/functions/v1/saml-auth/acs
+                </code>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="saml-entity-id">Entity ID (Optional Override)</Label>
+              <Input
+                id="saml-entity-id"
+                placeholder="Leave empty to use default"
+                value={configs.SAML_ENTITY_ID}
+                onChange={(e) => handleInputChange('SAML_ENTITY_ID', e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="saml-sso-url">Identity Provider SSO URL</Label>
+              <Input
+                id="saml-sso-url"
+                placeholder="https://your-idp.com/saml/sso"
+                value={configs.SAML_IDP_SSO_URL}
+                onChange={(e) => handleInputChange('SAML_IDP_SSO_URL', e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="saml-metadata-url">Identity Provider Metadata URL (Optional)</Label>
+              <Input
+                id="saml-metadata-url"
+                placeholder="https://your-idp.com/saml/metadata"
+                value={configs.SAML_IDP_METADATA_URL}
+                onChange={(e) => handleInputChange('SAML_IDP_METADATA_URL', e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="saml-certificate">Identity Provider Certificate (Optional)</Label>
+              <Input
+                id="saml-certificate"
+                placeholder="-----BEGIN CERTIFICATE-----..."
+                value={configs.SAML_CERTIFICATE}
+                onChange={(e) => handleInputChange('SAML_CERTIFICATE', e.target.value)}
               />
             </div>
           </div>

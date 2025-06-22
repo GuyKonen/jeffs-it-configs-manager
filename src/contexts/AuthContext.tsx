@@ -11,7 +11,7 @@ interface CustomUser {
   microsoft_user_id?: string;
   role?: string;
   user_metadata?: any;
-  auth_type: 'username';
+  auth_type: 'username' | 'saml';
 }
 
 interface AuthContextType {
@@ -19,6 +19,7 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   signInWithUsername: (username: string, password: string) => Promise<{ error?: string }>;
+  signInWithSAML: () => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
 }
 
@@ -47,6 +48,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         username: userData.username,
         role: userData.role,
         auth_type: 'username'
+      });
+      setLoading(false);
+      return;
+    }
+
+    // Check for SAML auth
+    const samlAuth = localStorage.getItem('saml_auth');
+    if (samlAuth) {
+      const userData = JSON.parse(samlAuth);
+      setUser({
+        id: userData.id,
+        email: userData.email,
+        display_name: userData.display_name,
+        role: userData.role,
+        auth_type: 'saml'
       });
       setLoading(false);
       return;
@@ -82,8 +98,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const signInWithSAML = async () => {
+    try {
+      const response = await supabase.functions.invoke('saml-auth', {
+        body: { returnUrl: window.location.origin }
+      });
+
+      if (response.error) {
+        return { error: 'SAML authentication failed' };
+      }
+
+      const { redirectUrl } = response.data;
+      if (redirectUrl) {
+        window.location.href = redirectUrl;
+        return {};
+      }
+
+      return { error: 'No redirect URL received' };
+    } catch (error) {
+      console.error('SAML auth error:', error);
+      return { error: 'SAML authentication failed' };
+    }
+  };
+
   const signOut = async () => {
     localStorage.removeItem('username_auth');
+    localStorage.removeItem('saml_auth');
     setUser(null);
     setSession(null);
   };
@@ -93,6 +133,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     session,
     loading,
     signInWithUsername,
+    signInWithSAML,
     signOut
   };
 

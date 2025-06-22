@@ -4,13 +4,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Settings, User } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { Settings, User, Building2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 
 const Auth = () => {
-  const { signInWithUsername, user, loading } = useAuth();
+  const { signInWithUsername, signInWithSAML, user, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [username, setUsername] = useState('');
@@ -52,6 +53,21 @@ const Auth = () => {
     setIsSigningIn(false);
   };
 
+  const handleSAMLSignIn = async () => {
+    setIsSigningIn(true);
+    const { error } = await signInWithSAML();
+    
+    if (error) {
+      toast({
+        title: "SAML Authentication Failed",
+        description: error,
+        variant: "destructive",
+      });
+      setIsSigningIn(false);
+    }
+    // If successful, user will be redirected
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
@@ -81,10 +97,31 @@ const Auth = () => {
           <CardHeader className="text-center">
             <CardTitle className="text-xl">Welcome Back</CardTitle>
             <CardDescription>
-              Enter your admin credentials to continue
+              Choose your authentication method
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-6">
+            {/* SAML Login */}
+            <Button
+              onClick={handleSAMLSignIn}
+              disabled={isSigningIn}
+              className="w-full"
+              variant="outline"
+            >
+              <Building2 className="h-4 w-4 mr-2" />
+              {isSigningIn ? 'Redirecting...' : 'Sign in with SAML'}
+            </Button>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <Separator className="w-full" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-white px-2 text-muted-foreground">Or</span>
+              </div>
+            </div>
+
+            {/* Username/Password Login */}
             <form onSubmit={handleUsernameSignIn} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="username">Admin Username</Label>
