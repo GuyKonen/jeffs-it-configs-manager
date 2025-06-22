@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -5,16 +6,18 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
-import { Settings, Key, Zap, MessageSquare, Cloud } from 'lucide-react';
+import { Settings, Key, Zap, MessageSquare, Cloud, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 import UserProfile from '@/components/UserProfile';
 
 const Index = () => {
   const { toast } = useToast();
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const [saving, setSaving] = useState(false);
 
   // Redirect to auth if not logged in
   useEffect(() => {
@@ -52,12 +55,54 @@ const Index = () => {
   };
 
   const handleSave = async () => {
-    // In a real implementation, this would make an API call to update the .env file
-    toast({
-      title: "Configuration Saved",
-      description: "JeffFromIT configuration has been updated successfully.",
-    });
-    console.log('Saving configuration:', configs);
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to save configurations.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('update-env', {
+        body: { configs }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // Create and download the .env file
+      if (data?.envFile) {
+        const blob = new Blob([data.envFile], { type: 'text/plain' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = '.env';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }
+
+      toast({
+        title: "Configuration Saved",
+        description: "Environment variables updated and .env file downloaded successfully.",
+      });
+      
+      console.log('Configuration saved successfully:', data);
+    } catch (error) {
+      console.error('Error saving configuration:', error);
+      toast({
+        title: "Save Failed",
+        description: "Failed to update environment variables. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Show loading state
@@ -276,11 +321,21 @@ const Index = () => {
         <div className="flex justify-center">
           <Button 
             onClick={handleSave}
+            disabled={saving}
             size="lg"
             className="px-8 py-3 text-lg font-semibold bg-primary hover:bg-primary/90 shadow-lg"
           >
-            <Key className="h-5 w-5 mr-2" />
-            Save Configuration
+            {saving ? (
+              <>
+                <Key className="h-5 w-5 mr-2 animate-spin" />
+                Updating...
+              </>
+            ) : (
+              <>
+                <Download className="h-5 w-5 mr-2" />
+                Save & Download .env File
+              </>
+            )}
           </Button>
         </div>
 
