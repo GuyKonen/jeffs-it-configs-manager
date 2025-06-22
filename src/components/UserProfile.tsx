@@ -33,7 +33,7 @@ const UserProfile = () => {
         <AvatarFallback className="bg-primary text-primary-foreground text-xs">
           {user.auth_type === 'username' && user.role === 'admin' ? (
             <Shield className="h-4 w-4" />
-          ) : user.auth_type === 'microsoft' ? (
+          ) : user.auth_type === 'entra' ? (
             <Building className="h-4 w-4" />
           ) : (
             <User className="h-4 w-4" />
@@ -47,7 +47,7 @@ const UserProfile = () => {
           {user.role === 'admin' && (
             <Shield className="h-3 w-3 ml-1 text-red-500" />
           )}
-          {user.auth_type === 'microsoft' && (
+          {user.auth_type === 'entra' && (
             <Building className="h-3 w-3 ml-1 text-blue-500" />
           )}
         </p>

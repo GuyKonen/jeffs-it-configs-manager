@@ -11,27 +11,15 @@ interface CustomUser {
   microsoft_user_id?: string;
   role?: string;
   user_metadata?: any;
-  auth_type: 'username' | 'microsoft';
-}
-
-interface DeviceCodeData {
-  device_code: string;
-  user_code: string;
-  verification_uri: string;
-  expires_in: number;
-  interval: number;
+  auth_type: 'username' | 'entra';
 }
 
 interface AuthContextType {
   user: CustomUser | null;
   session: Session | null;
   loading: boolean;
-  deviceCodeData: DeviceCodeData | null;
-  isPollingForAuth: boolean;
   signInWithUsername: (username: string, password: string) => Promise<{ error?: string }>;
-  startMicrosoftDeviceFlow: () => Promise<{ error?: string; deviceCodeData?: DeviceCodeData }>;
-  pollForMicrosoftAuth: () => void;
-  stopPolling: () => void;
+  signInWithEntra: (email: string, password: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
 }
 
@@ -49,9 +37,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<CustomUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [deviceCodeData, setDeviceCodeData] = useState<DeviceCodeData | null>(null);
-  const [isPollingForAuth, setIsPollingForAuth] = useState(false);
-  const [pollInterval, setPollInterval] = useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     // Check for username auth first
@@ -68,16 +53,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    // Check for Microsoft auth
-    const microsoftAuth = localStorage.getItem('microsoft_auth');
-    if (microsoftAuth) {
-      const userData = JSON.parse(microsoftAuth);
+    // Check for Entra auth
+    const entraAuth = localStorage.getItem('entra_auth');
+    if (entraAuth) {
+      const userData = JSON.parse(entraAuth);
       setUser({
         id: userData.id,
         email: userData.email,
-        display_name: userData.display_name,
-        microsoft_user_id: userData.microsoft_user_id,
-        auth_type: 'microsoft'
+        role: userData.role,
+        auth_type: 'entra'
       });
       setLoading(false);
       return;
@@ -113,100 +97,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const startMicrosoftDeviceFlow = async () => {
+  const signInWithEntra = async (email: string, password: string) => {
     try {
-      const response = await supabase.functions.invoke('microsoft-device-auth', {
-        body: { action: 'start_device_flow' }
+      const response = await supabase.functions.invoke('entra-auth', {
+        body: { email, password, action: 'login' }
       });
 
       if (response.error || !response.data?.success) {
-        return { error: response.data?.error || 'Failed to start device flow' };
+        return { error: response.data?.error || 'Invalid Entra ID credentials' };
       }
 
-      const deviceData = {
-        device_code: response.data.device_code,
-        user_code: response.data.user_code,
-        verification_uri: response.data.verification_uri,
-        expires_in: response.data.expires_in,
-        interval: response.data.interval
-      };
+      const userData = response.data.user;
+      localStorage.setItem('entra_auth', JSON.stringify(userData));
+      
+      setUser({
+        id: userData.id,
+        email: userData.email,
+        role: userData.role,
+        auth_type: 'entra'
+      });
 
-      setDeviceCodeData(deviceData);
-      return { deviceCodeData: deviceData };
+      return {};
     } catch (error) {
-      console.error('Microsoft device flow error:', error);
-      return { error: 'Failed to start device flow' };
-    }
-  };
-
-  const pollForMicrosoftAuth = () => {
-    if (!deviceCodeData || isPollingForAuth) return;
-
-    setIsPollingForAuth(true);
-    
-    const poll = async () => {
-      try {
-        const response = await supabase.functions.invoke('microsoft-device-auth', {
-          body: { 
-            action: 'poll_token',
-            device_code: deviceCodeData.device_code
-          }
-        });
-
-        if (response.data?.success && response.data?.user) {
-          // Authentication successful
-          const userData = response.data.user;
-          localStorage.setItem('microsoft_auth', JSON.stringify(userData));
-          
-          setUser({
-            id: userData.id,
-            email: userData.email,
-            display_name: userData.display_name,
-            microsoft_user_id: userData.microsoft_user_id,
-            auth_type: 'microsoft'
-          });
-
-          stopPolling();
-          setDeviceCodeData(null);
-        } else if (response.data?.pending) {
-          // Still waiting for user to authenticate
-          console.log('Waiting for user authentication...');
-        } else if (response.data?.error) {
-          console.error('Authentication error:', response.data.error);
-          stopPolling();
-          setDeviceCodeData(null);
-        }
-      } catch (error) {
-        console.error('Polling error:', error);
-        stopPolling();
-      }
-    };
-
-    // Start polling
-    poll();
-    const interval = setInterval(poll, (deviceCodeData.interval || 5) * 1000);
-    setPollInterval(interval);
-
-    // Stop polling after expiration
-    setTimeout(() => {
-      stopPolling();
-      setDeviceCodeData(null);
-    }, deviceCodeData.expires_in * 1000);
-  };
-
-  const stopPolling = () => {
-    setIsPollingForAuth(false);
-    if (pollInterval) {
-      clearInterval(pollInterval);
-      setPollInterval(null);
+      console.error('Entra auth error:', error);
+      return { error: 'Authentication failed' };
     }
   };
 
   const signOut = async () => {
     localStorage.removeItem('username_auth');
-    localStorage.removeItem('microsoft_auth');
-    stopPolling();
-    setDeviceCodeData(null);
+    localStorage.removeItem('entra_auth');
     setUser(null);
     setSession(null);
   };
@@ -215,12 +135,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     user,
     session,
     loading,
-    deviceCodeData,
-    isPollingForAuth,
     signInWithUsername,
-    startMicrosoftDeviceFlow,
-    pollForMicrosoftAuth,
-    stopPolling,
+    signInWithEntra,
     signOut
   };
 
