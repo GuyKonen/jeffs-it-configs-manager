@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Settings, Users, Zap, MessageSquare, Cloud } from 'lucide-react';
+import { Settings, Users, MessageSquare, Cloud } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import UserProfile from '@/components/UserProfile';
@@ -36,7 +36,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      <div className="max-w-6xl mx-auto">
+      <div className="w-full">
         {/* Smaller User Profile */}
         <div className="p-4">
           <UserProfile />
@@ -50,15 +50,12 @@ const Index = () => {
             </div>
             <h1 className="text-3xl font-bold text-slate-800">JeffFromIT</h1>
           </div>
-          <p className="text-lg text-slate-600">
-            AI IT Assistant Configuration Dashboard
-          </p>
         </div>
 
         {/* Main Tabs */}
         <Tabs defaultValue="config" className="w-full">
           <div className="px-6">
-            <TabsList className="grid w-full grid-cols-5 lg:w-fit lg:mx-auto">
+            <TabsList className="grid w-full grid-cols-4 lg:w-fit lg:mx-auto">
               <TabsTrigger value="config" className="flex items-center gap-2">
                 <Settings className="h-4 w-4" />
                 Config
@@ -69,10 +66,6 @@ const Index = () => {
                   Users
                 </TabsTrigger>
               )}
-              <TabsTrigger value="n8n" className="flex items-center gap-2">
-                <Zap className="h-4 w-4" />
-                N8N
-              </TabsTrigger>
               <TabsTrigger value="chat" className="flex items-center gap-2">
                 <MessageSquare className="h-4 w-4" />
                 Chat
@@ -94,16 +87,6 @@ const Index = () => {
             </TabsContent>
           )}
 
-          <TabsContent value="n8n" className="mt-4">
-            <ProxyFrame 
-              url="http://localhost:5678/"
-              title="N8N Workflow Automation"
-              description="Access your N8N workflow automation interface"
-              icon={Zap}
-              fullScreen={true}
-            />
-          </TabsContent>
-
           <TabsContent value="chat" className="mt-4">
             <ProxyFrame 
               url="http://localhost:3000/"
@@ -111,10 +94,6 @@ const Index = () => {
               description="Access your chat interface"
               icon={MessageSquare}
               fullScreen={true}
-              credentials={{
-                email: "admin@admin.com",
-                password: "Shalom1234!"
-              }}
             />
           </TabsContent>
 
@@ -125,10 +104,6 @@ const Index = () => {
               description="Access your Azure services interface"
               icon={Cloud}
               fullScreen={true}
-              credentials={{
-                email: "admin@admin.com",
-                password: "Shalom1234!"
-              }}
             />
           </TabsContent>
         </Tabs>

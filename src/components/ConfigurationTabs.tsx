@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
-import { Settings, Key, Zap, MessageSquare, Cloud, Download } from 'lucide-react';
+import { Settings, Key, Zap, MessageSquare, Cloud, Download, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,6 +17,10 @@ const ConfigurationTabs = () => {
   const [saving, setSaving] = useState(false);
 
   const [configs, setConfigs] = useState({
+    // Open WebUI Credentials
+    OPENWEBUI_EMAIL: 'admin@admin.com',
+    OPENWEBUI_PASSWORD: 'Shalom1234!',
+    
     // N8N Configuration
     N8N_ENCRYPTION_KEY: '',
     N8N_USER_MANAGEMENT_JWT_SECRET: '',
@@ -97,6 +101,43 @@ const ConfigurationTabs = () => {
 
   return (
     <div className="space-y-8">
+      {/* Open WebUI Credentials */}
+      <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+        <CardHeader>
+          <div className="flex items-center space-x-2">
+            <User className="h-6 w-6 text-purple-500" />
+            <CardTitle className="text-xl">Open WebUI Credentials</CardTitle>
+          </div>
+          <CardDescription>
+            Configure login credentials for Chat and Azure interfaces
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="openwebui-email">Email</Label>
+              <Input
+                id="openwebui-email"
+                type="email"
+                placeholder="Enter email address"
+                value={configs.OPENWEBUI_EMAIL}
+                onChange={(e) => handleInputChange('OPENWEBUI_EMAIL', e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="openwebui-password">Password</Label>
+              <Input
+                id="openwebui-password"
+                type="password"
+                placeholder="Enter password"
+                value={configs.OPENWEBUI_PASSWORD}
+                onChange={(e) => handleInputChange('OPENWEBUI_PASSWORD', e.target.value)}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* N8N Configuration */}
       <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
         <CardHeader>

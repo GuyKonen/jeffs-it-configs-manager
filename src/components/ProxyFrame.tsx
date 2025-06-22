@@ -9,10 +9,6 @@ interface ProxyFrameProps {
   description: string;
   icon: React.ComponentType<{ className?: string }>;
   fullScreen?: boolean;
-  credentials?: {
-    email: string;
-    password: string;
-  };
 }
 
 const ProxyFrame: React.FC<ProxyFrameProps> = ({ 
@@ -20,8 +16,7 @@ const ProxyFrame: React.FC<ProxyFrameProps> = ({
   title, 
   description, 
   icon: Icon, 
-  fullScreen = false,
-  credentials 
+  fullScreen = false
 }) => {
   if (fullScreen) {
     return (
@@ -31,11 +26,6 @@ const ProxyFrame: React.FC<ProxyFrameProps> = ({
           <h2 className="text-xl font-semibold">{title}</h2>
           <ExternalLink className="h-4 w-4 text-muted-foreground ml-auto" />
         </div>
-        {credentials && (
-          <div className="px-4 mb-2 text-sm text-muted-foreground">
-            Login with: {credentials.email} / {credentials.password}
-          </div>
-        )}
         <div className="w-full h-full">
           <iframe 
             src={url}

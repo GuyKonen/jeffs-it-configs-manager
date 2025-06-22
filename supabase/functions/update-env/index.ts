@@ -47,6 +47,16 @@ serve(async (req) => {
       let envContent = '# JeffFromIT Configuration\n';
       envContent += `# Updated: ${new Date().toISOString()}\n\n`;
 
+      // Open WebUI Credentials
+      envContent += '# Open WebUI Credentials\n';
+      if (configs.OPENWEBUI_EMAIL) {
+        envContent += `OPENWEBUI_EMAIL=${configs.OPENWEBUI_EMAIL}\n`;
+      }
+      if (configs.OPENWEBUI_PASSWORD) {
+        envContent += `OPENWEBUI_PASSWORD=${configs.OPENWEBUI_PASSWORD}\n`;
+      }
+      envContent += '\n';
+
       // N8N Configuration
       envContent += '# N8N Configuration\n';
       if (configs.N8N_ENCRYPTION_KEY) {
