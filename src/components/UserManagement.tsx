@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,7 +29,8 @@ const UserManagement = () => {
   const [formData, setFormData] = useState({
     username: '',
     password: '',
-    role: 'user' as 'admin' | 'user'
+    role: 'user' as 'admin' | 'user',
+    authType: 'username' as 'username' | 'microsoft'
   });
 
   const fetchUsers = async () => {
@@ -74,10 +74,10 @@ const UserManagement = () => {
       return;
     }
 
-    if (!editingUser && !formData.password) {
+    if (!editingUser && !formData.password && formData.authType === 'username') {
       toast({
         title: "Missing Information",
-        description: "Password is required for new users.",
+        description: "Password is required for new username-based users.",
         variant: "destructive",
       });
       return;
@@ -89,10 +89,11 @@ const UserManagement = () => {
         action,
         username: formData.username,
         role: formData.role,
+        authType: formData.authType,
         currentUser: user?.username
       };
 
-      if (formData.password) {
+      if (formData.password && formData.authType === 'username') {
         body.password = formData.password;
       }
 
@@ -113,7 +114,7 @@ const UserManagement = () => {
 
       setIsDialogOpen(false);
       setEditingUser(null);
-      setFormData({ username: '', password: '', role: 'user' });
+      setFormData({ username: '', password: '', role: 'user', authType: 'username' });
       fetchUsers();
     } catch (error) {
       console.error('Error saving user:', error);
@@ -160,14 +161,15 @@ const UserManagement = () => {
     setFormData({
       username: userToEdit.username,
       password: '',
-      role: userToEdit.role
+      role: userToEdit.role,
+      authType: 'username'
     });
     setIsDialogOpen(true);
   };
 
   const openCreateDialog = () => {
     setEditingUser(null);
-    setFormData({ username: '', password: '', role: 'user' });
+    setFormData({ username: '', password: '', role: 'user', authType: 'username' });
     setIsDialogOpen(true);
   };
 
@@ -208,17 +210,31 @@ const UserManagement = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password">
-                    Password {editingUser && '(leave blank to keep current)'}
-                  </Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={formData.password}
-                    onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                    placeholder="Enter password"
-                  />
+                  <Label htmlFor="authType">Authentication Type</Label>
+                  <Select value={formData.authType} onValueChange={(value: 'username' | 'microsoft') => setFormData(prev => ({ ...prev, authType: value }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select authentication type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="username">Username/Password</SelectItem>
+                      <SelectItem value="microsoft">Microsoft SAML</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
+                {formData.authType === 'username' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="password">
+                      Password {editingUser && '(leave blank to keep current)'}
+                    </Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={formData.password}
+                      onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                      placeholder="Enter password"
+                    />
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="role">Role</Label>
                   <Select value={formData.role} onValueChange={(value: 'admin' | 'user') => setFormData(prev => ({ ...prev, role: value }))}>

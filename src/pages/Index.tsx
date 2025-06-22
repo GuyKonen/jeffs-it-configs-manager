@@ -37,18 +37,19 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <div className="w-full">
-        {/* Smaller User Profile */}
-        <div className="p-4">
-          <UserProfile />
-        </div>
-
         {/* Header */}
-        <div className="text-center space-y-2 px-6 pb-4">
-          <div className="flex items-center justify-center space-x-3 mb-2">
-            <div className="p-2 bg-primary rounded-full">
-              <Settings className="h-6 w-6 text-primary-foreground" />
+        <div className="text-center space-y-2 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center justify-center space-x-3 flex-1">
+              <div className="p-2 bg-primary rounded-full">
+                <Settings className="h-6 w-6 text-primary-foreground" />
+              </div>
+              <h1 className="text-3xl font-bold text-slate-800">JeffFromIT</h1>
             </div>
-            <h1 className="text-3xl font-bold text-slate-800">JeffFromIT</h1>
+            {/* Compact User Profile in top right */}
+            <div className="w-64">
+              <UserProfile />
+            </div>
           </div>
         </div>
 
@@ -77,12 +78,12 @@ const Index = () => {
             </TabsList>
           </div>
 
-          <TabsContent value="config" className="mt-4 px-6">
+          <TabsContent value="config" className="mt-4 px-6 max-w-6xl mx-auto">
             <ConfigurationTabs />
           </TabsContent>
 
           {user.role === 'admin' && (
-            <TabsContent value="users" className="mt-4 px-6">
+            <TabsContent value="users" className="mt-4 px-6 max-w-6xl mx-auto">
               <UserManagement />
             </TabsContent>
           )}

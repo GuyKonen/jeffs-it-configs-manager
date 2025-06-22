@@ -15,23 +15,33 @@ serve(async (req) => {
   }
 
   try {
-    // Verify authentication
+    console.log('Received request to update-env function');
+
+    // Get the authorization header
     const authHeader = req.headers.get('Authorization');
+    console.log('Auth header present:', !!authHeader);
+
     if (!authHeader) {
+      console.log('No authorization header found');
       return new Response(JSON.stringify({ error: 'Authorization header required' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    // Create Supabase client with auth header
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       { global: { headers: { Authorization: authHeader } } }
     );
 
+    // Verify user authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser();
+    console.log('User authentication check:', { user: !!user, error: authError });
+
     if (authError || !user) {
+      console.log('Authentication failed:', authError);
       return new Response(JSON.stringify({ error: 'Invalid authentication' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -97,18 +107,22 @@ serve(async (req) => {
       }
 
       // Store the configuration in the database for the user
-      const { error: dbError } = await supabase
-        .from('profiles')
-        .upsert({
-          id: user.id,
-          email: user.email,
-          full_name: user.user_metadata?.full_name,
-          avatar_url: user.user_metadata?.avatar_url,
-          updated_at: new Date().toISOString()
-        });
+      try {
+        const { error: dbError } = await supabase
+          .from('profiles')
+          .upsert({
+            id: user.id,
+            email: user.email,
+            full_name: user.user_metadata?.full_name,
+            avatar_url: user.user_metadata?.avatar_url,
+            updated_at: new Date().toISOString()
+          });
 
-      if (dbError) {
-        console.error('Database error:', dbError);
+        if (dbError) {
+          console.error('Database error:', dbError);
+        }
+      } catch (dbErr) {
+        console.log('Profile update failed (may not have profiles table):', dbErr);
       }
 
       console.log('Generated .env file content for user:', user.id);
@@ -129,7 +143,10 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in update-env function:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ 
+      error: 'Internal server error', 
+      details: error.message 
+    }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
