@@ -6,20 +6,20 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Settings, Chrome, User, Building, Cloud } from 'lucide-react';
+import { Settings, Chrome, User, Building, Shield } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 
 const Auth = () => {
-  const { signInWithGoogle, signInWithMicrosoft, signInWithUsername, signInWithAzure, user, loading } = useAuth();
+  const { signInWithGoogle, signInWithMicrosoft, signInWithUsername, signInWithEntraID, user, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [azureEmail, setAzureEmail] = useState('');
-  const [azurePassword, setAzurePassword] = useState('');
+  const [entraEmail, setEntraEmail] = useState('');
+  const [entraPassword, setEntraPassword] = useState('');
   const [isSigningIn, setIsSigningIn] = useState(false);
 
   useEffect(() => {
@@ -65,9 +65,9 @@ const Auth = () => {
     setIsSigningIn(false);
   };
 
-  const handleAzureSignIn = async (e: React.FormEvent) => {
+  const handleEntraSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!azureEmail || !azurePassword) {
+    if (!entraEmail || !entraPassword) {
       toast({
         title: "Missing Information",
         description: "Please enter both email and password.",
@@ -77,18 +77,18 @@ const Auth = () => {
     }
 
     setIsSigningIn(true);
-    const { error } = await signInWithAzure(azureEmail, azurePassword);
+    const { error } = await signInWithEntraID(entraEmail, entraPassword);
     
     if (error) {
       toast({
-        title: "Azure Authentication Failed",
+        title: "Entra ID Authentication Failed",
         description: error,
         variant: "destructive",
       });
     } else {
       toast({
         title: "Welcome!",
-        description: "Successfully signed in with Azure.",
+        description: "Successfully signed in with Microsoft Entra ID.",
       });
     }
     setIsSigningIn(false);
@@ -130,7 +130,7 @@ const Auth = () => {
             <Tabs defaultValue="username" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="username">Username</TabsTrigger>
-                <TabsTrigger value="azure">Azure</TabsTrigger>
+                <TabsTrigger value="entra">Entra ID</TabsTrigger>
               </TabsList>
               
               <TabsContent value="username" className="space-y-4 mt-4">
@@ -166,26 +166,26 @@ const Auth = () => {
                 </form>
               </TabsContent>
 
-              <TabsContent value="azure" className="space-y-4 mt-4">
-                <form onSubmit={handleAzureSignIn} className="space-y-4">
+              <TabsContent value="entra" className="space-y-4 mt-4">
+                <form onSubmit={handleEntraSignIn} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="azure-email">Email</Label>
+                    <Label htmlFor="entra-email">Email</Label>
                     <Input
-                      id="azure-email"
+                      id="entra-email"
                       type="email"
-                      placeholder="Enter your Azure email"
-                      value={azureEmail}
-                      onChange={(e) => setAzureEmail(e.target.value)}
+                      placeholder="Enter your Microsoft email"
+                      value={entraEmail}
+                      onChange={(e) => setEntraEmail(e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="azure-password">Password</Label>
+                    <Label htmlFor="entra-password">Password</Label>
                     <Input
-                      id="azure-password"
+                      id="entra-password"
                       type="password"
-                      placeholder="Enter your Azure password"
-                      value={azurePassword}
-                      onChange={(e) => setAzurePassword(e.target.value)}
+                      placeholder="Enter your password"
+                      value={entraPassword}
+                      onChange={(e) => setEntraPassword(e.target.value)}
                     />
                   </div>
                   <Button
@@ -193,8 +193,8 @@ const Auth = () => {
                     className="w-full"
                     disabled={isSigningIn}
                   >
-                    <Cloud className="h-4 w-4 mr-2" />
-                    {isSigningIn ? 'Signing in...' : 'Sign in with Azure'}
+                    <Shield className="h-4 w-4 mr-2" />
+                    {isSigningIn ? 'Signing in...' : 'Sign in with Entra ID'}
                   </Button>
                 </form>
               </TabsContent>

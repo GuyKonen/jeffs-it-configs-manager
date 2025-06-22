@@ -168,8 +168,8 @@ const UserManagement = () => {
       setIsLoading(true);
       
       let response;
-      if (userData.authType === 'azure') {
-        response = await supabase.functions.invoke('azure-management', {
+      if (userData.authType === 'entra') {
+        response = await supabase.functions.invoke('entra-management', {
           body: {
             action: 'create',
             email: userData.email,
@@ -196,7 +196,7 @@ const UserManagement = () => {
 
       toast({
         title: "Success",
-        description: `${userData.authType === 'azure' ? 'Azure user' : 'User'} created successfully`,
+        description: `${userData.authType === 'entra' ? 'Entra ID user' : 'User'} created successfully`,
       });
 
       fetchUsers();
@@ -281,7 +281,7 @@ const UserManagement = () => {
           <DialogHeader>
             <DialogTitle>Create New User</DialogTitle>
             <DialogDescription>
-              Add a new user to the system with username or Azure authentication.
+              Add a new user to the system with username or Microsoft Entra ID authentication.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -293,7 +293,7 @@ const UserManagement = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="username">Username</SelectItem>
-                  <SelectItem value="azure">Azure</SelectItem>
+                  <SelectItem value="entra">Microsoft Entra ID</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -316,7 +316,7 @@ const UserManagement = () => {
                   type="email"
                   value={newUser.email}
                   onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                  placeholder="Enter Azure email"
+                  placeholder="Enter Microsoft email"
                 />
               </div>
             )}

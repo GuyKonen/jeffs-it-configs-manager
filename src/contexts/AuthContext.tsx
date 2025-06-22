@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,7 +8,7 @@ interface CustomUser {
   username?: string;
   role?: string;
   user_metadata?: any;
-  auth_type: 'supabase' | 'username' | 'azure';
+  auth_type: 'supabase' | 'username' | 'entra';
 }
 
 interface AuthContextType {
@@ -18,7 +17,7 @@ interface AuthContextType {
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
   signInWithMicrosoft: () => Promise<void>;
-  signInWithAzure: (email: string, password: string) => Promise<{ error?: string }>;
+  signInWithEntraID: (email: string, password: string) => Promise<{ error?: string }>;
   signInWithUsername: (username: string, password: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
 }
@@ -53,15 +52,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    // Check for Azure auth
-    const azureAuth = localStorage.getItem('azure_auth');
-    if (azureAuth) {
-      const userData = JSON.parse(azureAuth);
+    // Check for Entra ID auth
+    const entraAuth = localStorage.getItem('entra_auth');
+    if (entraAuth) {
+      const userData = JSON.parse(entraAuth);
       setUser({
         id: userData.id,
         email: userData.email,
         role: userData.role,
-        auth_type: 'azure'
+        auth_type: 'entra'
       });
       setLoading(false);
       return;
@@ -131,30 +130,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signInWithAzure = async (email: string, password: string) => {
+  const signInWithEntraID = async (email: string, password: string) => {
     try {
-      const response = await supabase.functions.invoke('azure-auth', {
+      const response = await supabase.functions.invoke('entra-auth', {
         body: { email, password, action: 'login' }
       });
 
       if (response.error || !response.data?.success) {
-        return { error: response.data?.error || 'Azure authentication failed' };
+        return { error: response.data?.error || 'Microsoft Entra ID authentication failed' };
       }
 
       const userData = response.data.user;
-      localStorage.setItem('azure_auth', JSON.stringify(userData));
+      localStorage.setItem('entra_auth', JSON.stringify(userData));
       
       setUser({
         id: userData.id,
         email: userData.email,
         role: userData.role,
-        auth_type: 'azure'
+        auth_type: 'entra'
       });
 
       return {};
     } catch (error) {
-      console.error('Azure auth error:', error);
-      return { error: 'Azure authentication failed' };
+      console.error('Entra ID auth error:', error);
+      return { error: 'Microsoft Entra ID authentication failed' };
     }
   };
 
@@ -187,7 +186,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     localStorage.removeItem('username_auth');
-    localStorage.removeItem('azure_auth');
+    localStorage.removeItem('entra_auth');
     
     if (session) {
       const { error } = await supabase.auth.signOut();
@@ -206,7 +205,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loading,
     signInWithGoogle,
     signInWithMicrosoft,
-    signInWithAzure,
+    signInWithEntraID,
     signInWithUsername,
     signOut
   };
