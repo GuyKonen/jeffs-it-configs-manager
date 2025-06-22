@@ -9,6 +9,48 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      entra_users: {
+        Row: {
+          access_token: string | null
+          created_at: string
+          display_name: string | null
+          email: string
+          id: string
+          is_active: boolean | null
+          microsoft_user_id: string
+          refresh_token: string | null
+          tenant_id: string | null
+          token_expires_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_token?: string | null
+          created_at?: string
+          display_name?: string | null
+          email: string
+          id?: string
+          is_active?: boolean | null
+          microsoft_user_id: string
+          refresh_token?: string | null
+          tenant_id?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string | null
+          created_at?: string
+          display_name?: string | null
+          email?: string
+          id?: string
+          is_active?: boolean | null
+          microsoft_user_id?: string
+          refresh_token?: string | null
+          tenant_id?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null

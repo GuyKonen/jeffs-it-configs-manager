@@ -2,7 +2,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { LogOut, User, Shield } from 'lucide-react';
+import { LogOut, User, Shield, Building } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 const UserProfile = () => {
@@ -21,25 +21,22 @@ const UserProfile = () => {
 
   const displayName = user.auth_type === 'username' 
     ? user.username 
-    : (user.user_metadata?.full_name || user.email || 'User');
+    : (user.display_name || user.email || 'User');
   
   const displayEmail = user.auth_type === 'username' 
     ? `${user.username} (${user.role})` 
     : user.email;
-  
-  const avatarUrl = user.auth_type === 'supabase' ? user.user_metadata?.avatar_url : null;
 
   return (
     <div className="flex items-center space-x-3 bg-white/80 backdrop-blur-sm rounded-lg p-3 shadow-sm border max-w-md ml-auto">
       <Avatar className="h-8 w-8">
-        <AvatarImage src={avatarUrl} alt={displayName} />
         <AvatarFallback className="bg-primary text-primary-foreground text-xs">
           {user.auth_type === 'username' && user.role === 'admin' ? (
             <Shield className="h-4 w-4" />
-          ) : avatarUrl ? (
-            <User className="h-4 w-4" />
+          ) : user.auth_type === 'microsoft' ? (
+            <Building className="h-4 w-4" />
           ) : (
-            getInitials(displayName || 'U')
+            <User className="h-4 w-4" />
           )}
         </AvatarFallback>
       </Avatar>
@@ -49,6 +46,9 @@ const UserProfile = () => {
           {displayName}
           {user.role === 'admin' && (
             <Shield className="h-3 w-3 ml-1 text-red-500" />
+          )}
+          {user.auth_type === 'microsoft' && (
+            <Building className="h-3 w-3 ml-1 text-blue-500" />
           )}
         </p>
         <p className="text-xs text-slate-500 truncate">
