@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -5,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
-import { Settings, Key, Zap, MessageSquare, Cloud, Download, User, Shield } from 'lucide-react';
+import { Settings, Key, Zap, MessageSquare, Cloud, Download, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,31 +17,28 @@ const ConfigurationTabs = () => {
   const [saving, setSaving] = useState(false);
 
   const [configs, setConfigs] = useState({
-    // Open WebUI Credentials
-    OPENWEBUI_EMAIL: 'admin@admin.com',
-    OPENWEBUI_PASSWORD: 'Shalom1234!',
-    
-    // SAML Configuration
-    SAML_ENTITY_ID: '',
-    SAML_IDP_SSO_URL: '',
-    SAML_IDP_METADATA_URL: '',
-    SAML_CERTIFICATE: '',
-    
     // N8N Configuration
     N8N_ENCRYPTION_KEY: '',
     N8N_USER_MANAGEMENT_JWT_SECRET: '',
     N8N_USER_MANAGEMENT_DISABLED: false,
     N8N_DIAGNOSTICS_ENABLED: false,
-    N8N_PERSONALIZATION_ENABLED: false,
     N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: true,
     N8N_RUNNERS_ENABLED: true,
+    
+    // Open WebUI Configuration
+    AUTO_CONTINUE_PROMPTS: false,
+    ENABLE_CONVERSATION_TEMPLATES: false,
+    
+    // Azure MCP Configuration
+    AZURE_TENANT_ID: '',
+    AZURE_CLIENT_ID: '',
+    AZURE_CLIENT_SECRET: '',
     
     // Azure OpenAI Configuration
     AZURE_OPENAI_URL: '',
     AZURE_OPENAI_API_KEY: '',
     AZURE_OPENAI_API_VERSION: '',
     AZURE_OPENAI_MODEL_NAME: '',
-    AZURE_TENANT_ID: '',
     
     // Slack Configuration
     SLACK_ACCESS_TOKEN: '',
@@ -106,114 +104,6 @@ const ConfigurationTabs = () => {
 
   return (
     <div className="space-y-8">
-      {/* Open WebUI Credentials */}
-      <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-        <CardHeader>
-          <div className="flex items-center space-x-2">
-            <User className="h-6 w-6 text-purple-500" />
-            <CardTitle className="text-xl">Open WebUI Credentials</CardTitle>
-          </div>
-          <CardDescription>
-            Configure login credentials for Chat and Azure interfaces
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="openwebui-email">Email</Label>
-              <Input
-                id="openwebui-email"
-                type="email"
-                placeholder="Enter email address"
-                value={configs.OPENWEBUI_EMAIL}
-                onChange={(e) => handleInputChange('OPENWEBUI_EMAIL', e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="openwebui-password">Password</Label>
-              <Input
-                id="openwebui-password"
-                type="password"
-                placeholder="Enter password"
-                value={configs.OPENWEBUI_PASSWORD}
-                onChange={(e) => handleInputChange('OPENWEBUI_PASSWORD', e.target.value)}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* SAML Configuration */}
-      <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-        <CardHeader>
-          <div className="flex items-center space-x-2">
-            <Shield className="h-6 w-6 text-indigo-500" />
-            <CardTitle className="text-xl">SAML Authentication</CardTitle>
-          </div>
-          <CardDescription>
-            Configure SAML SSO settings for enterprise authentication
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-            <h4 className="font-medium text-blue-900 mb-2">SAML Service URLs</h4>
-            <div className="space-y-2 text-sm">
-              <div>
-                <strong>Entity ID (Identifier):</strong>
-                <code className="ml-2 px-2 py-1 bg-blue-100 rounded text-blue-800">
-                  {window.location.origin}/supabase/functions/v1/saml-auth/metadata
-                </code>
-              </div>
-              <div>
-                <strong>ACS URL (Reply URL):</strong>
-                <code className="ml-2 px-2 py-1 bg-blue-100 rounded text-blue-800">
-                  {window.location.origin}/supabase/functions/v1/saml-auth/acs
-                </code>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="saml-entity-id">Entity ID (Optional Override)</Label>
-              <Input
-                id="saml-entity-id"
-                placeholder="Leave empty to use default"
-                value={configs.SAML_ENTITY_ID}
-                onChange={(e) => handleInputChange('SAML_ENTITY_ID', e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="saml-sso-url">Identity Provider SSO URL</Label>
-              <Input
-                id="saml-sso-url"
-                placeholder="https://your-idp.com/saml/sso"
-                value={configs.SAML_IDP_SSO_URL}
-                onChange={(e) => handleInputChange('SAML_IDP_SSO_URL', e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="saml-metadata-url">Identity Provider Metadata URL (Optional)</Label>
-              <Input
-                id="saml-metadata-url"
-                placeholder="https://your-idp.com/saml/metadata"
-                value={configs.SAML_IDP_METADATA_URL}
-                onChange={(e) => handleInputChange('SAML_IDP_METADATA_URL', e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="saml-certificate">Identity Provider Certificate (Optional)</Label>
-              <Input
-                id="saml-certificate"
-                placeholder="-----BEGIN CERTIFICATE-----..."
-                value={configs.SAML_CERTIFICATE}
-                onChange={(e) => handleInputChange('SAML_CERTIFICATE', e.target.value)}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* N8N Configuration */}
       <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
         <CardHeader>
@@ -299,6 +189,89 @@ const ConfigurationTabs = () => {
         </CardContent>
       </Card>
 
+      {/* Open WebUI Configuration */}
+      <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+        <CardHeader>
+          <div className="flex items-center space-x-2">
+            <User className="h-6 w-6 text-purple-500" />
+            <CardTitle className="text-xl">Open WebUI Configuration</CardTitle>
+          </div>
+          <CardDescription>
+            Configure Open WebUI interface settings
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Auto Continue Prompts</Label>
+                <p className="text-sm text-muted-foreground">Automatically continue prompts</p>
+              </div>
+              <Switch
+                checked={configs.AUTO_CONTINUE_PROMPTS}
+                onCheckedChange={(checked) => handleInputChange('AUTO_CONTINUE_PROMPTS', checked)}
+              />
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Conversation Templates</Label>
+                <p className="text-sm text-muted-foreground">Enable conversation templates</p>
+              </div>
+              <Switch
+                checked={configs.ENABLE_CONVERSATION_TEMPLATES}
+                onCheckedChange={(checked) => handleInputChange('ENABLE_CONVERSATION_TEMPLATES', checked)}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Azure MCP Configuration */}
+      <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+        <CardHeader>
+          <div className="flex items-center space-x-2">
+            <Cloud className="h-6 w-6 text-blue-500" />
+            <CardTitle className="text-xl">Azure MCP</CardTitle>
+          </div>
+          <CardDescription>
+            Configure Azure MCP settings for cloud integration
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="azure-tenant">Azure Tenant ID</Label>
+              <Input
+                id="azure-tenant"
+                placeholder="Enter your Azure tenant ID"
+                value={configs.AZURE_TENANT_ID}
+                onChange={(e) => handleInputChange('AZURE_TENANT_ID', e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="azure-client-id">Azure Client ID</Label>
+              <Input
+                id="azure-client-id"
+                placeholder="Enter your Azure client ID"
+                value={configs.AZURE_CLIENT_ID}
+                onChange={(e) => handleInputChange('AZURE_CLIENT_ID', e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="azure-client-secret">Azure Client Secret</Label>
+              <Input
+                id="azure-client-secret"
+                type="password"
+                placeholder="Enter your Azure client secret"
+                value={configs.AZURE_CLIENT_SECRET}
+                onChange={(e) => handleInputChange('AZURE_CLIENT_SECRET', e.target.value)}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Azure OpenAI Configuration */}
       <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
         <CardHeader>
@@ -349,15 +322,6 @@ const ConfigurationTabs = () => {
                 onChange={(e) => handleInputChange('AZURE_OPENAI_MODEL_NAME', e.target.value)}
               />
             </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="azure-tenant">Azure Tenant ID</Label>
-            <Input
-              id="azure-tenant"
-              placeholder="Enter your Azure tenant ID"
-              value={configs.AZURE_TENANT_ID}
-              onChange={(e) => handleInputChange('AZURE_TENANT_ID', e.target.value)}
-            />
           </div>
         </CardContent>
       </Card>
