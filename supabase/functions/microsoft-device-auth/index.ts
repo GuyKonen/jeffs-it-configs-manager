@@ -9,7 +9,7 @@ const corsHeaders = {
 };
 
 const MICROSOFT_TENANT_ID = 'common'; // Use 'common' for multi-tenant or your specific tenant ID
-const CLIENT_ID = 'your-azure-app-client-id'; // You'll need to register an Azure app
+const CLIENT_ID = Deno.env.get('MICROSOFT_CLIENT_ID'); // Now configurable via Supabase secrets
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -17,6 +17,18 @@ serve(async (req) => {
   }
 
   try {
+    // Check if CLIENT_ID is configured
+    if (!CLIENT_ID) {
+      console.error('MICROSOFT_CLIENT_ID environment variable is not set');
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: 'Microsoft Client ID is not configured. Please add MICROSOFT_CLIENT_ID to Supabase secrets.' 
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -25,6 +37,8 @@ serve(async (req) => {
     const { action, device_code, user_code } = await req.json();
 
     if (action === 'start_device_flow') {
+      console.log('Starting device code flow with client ID:', CLIENT_ID.substring(0, 8) + '...');
+      
       // Initiate device code flow
       const deviceCodeResponse = await fetch(
         `https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/oauth2/v2.0/devicecode`,
@@ -41,10 +55,13 @@ serve(async (req) => {
       );
 
       if (!deviceCodeResponse.ok) {
+        const errorText = await deviceCodeResponse.text();
+        console.error('Device code flow failed:', errorText);
         throw new Error('Failed to initiate device code flow');
       }
 
       const deviceData = await deviceCodeResponse.json();
+      console.log('Device code flow initiated successfully');
       
       return new Response(JSON.stringify({
         success: true,
@@ -164,6 +181,8 @@ serve(async (req) => {
         if (insertError) throw insertError;
         user = newUser;
       }
+
+      console.log('User authenticated successfully:', user.email);
 
       return new Response(JSON.stringify({
         success: true,
