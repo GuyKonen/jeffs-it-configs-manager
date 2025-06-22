@@ -11,7 +11,7 @@ interface CustomUser {
   microsoft_user_id?: string;
   role?: string;
   user_metadata?: any;
-  auth_type: 'username' | 'entra' | 'oidc';
+  auth_type: 'username';
 }
 
 interface AuthContextType {
@@ -19,9 +19,6 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   signInWithUsername: (username: string, password: string) => Promise<{ error?: string }>;
-  signInWithEntra: (email: string, password: string) => Promise<{ error?: string }>;
-  signInWithOIDC: () => Promise<{ error?: string; authUrl?: string }>;
-  handleOIDCCallback: (code: string, state: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
 }
 
@@ -41,7 +38,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for username auth first
+    // Check for username auth
     const usernameAuth = localStorage.getItem('username_auth');
     if (usernameAuth) {
       const userData = JSON.parse(usernameAuth);
@@ -50,35 +47,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         username: userData.username,
         role: userData.role,
         auth_type: 'username'
-      });
-      setLoading(false);
-      return;
-    }
-
-    // Check for Entra auth
-    const entraAuth = localStorage.getItem('entra_auth');
-    if (entraAuth) {
-      const userData = JSON.parse(entraAuth);
-      setUser({
-        id: userData.id,
-        email: userData.email,
-        role: userData.role,
-        auth_type: 'entra'
-      });
-      setLoading(false);
-      return;
-    }
-
-    // Check for OIDC auth
-    const oidcAuth = localStorage.getItem('oidc_auth');
-    if (oidcAuth) {
-      const userData = JSON.parse(oidcAuth);
-      setUser({
-        id: userData.id,
-        email: userData.email,
-        display_name: userData.display_name,
-        role: userData.role,
-        auth_type: 'oidc'
       });
       setLoading(false);
       return;
@@ -114,84 +82,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signInWithEntra = async (email: string, password: string) => {
-    try {
-      const response = await supabase.functions.invoke('entra-auth', {
-        body: { email, password, action: 'login' }
-      });
-
-      if (response.error || !response.data?.success) {
-        return { error: response.data?.error || 'Invalid Entra ID credentials' };
-      }
-
-      const userData = response.data.user;
-      localStorage.setItem('entra_auth', JSON.stringify(userData));
-      
-      setUser({
-        id: userData.id,
-        email: userData.email,
-        role: userData.role,
-        auth_type: 'entra'
-      });
-
-      return {};
-    } catch (error) {
-      console.error('Entra auth error:', error);
-      return { error: 'Authentication failed' };
-    }
-  };
-
-  const signInWithOIDC = async () => {
-    try {
-      const response = await supabase.functions.invoke('oidc-auth', {
-        body: { action: 'initiate' }
-      });
-
-      if (response.error || !response.data?.authUrl) {
-        return { error: response.data?.error || 'Failed to initiate OIDC authentication' };
-      }
-
-      // Redirect to Microsoft OIDC
-      window.location.href = response.data.authUrl;
-      return {};
-    } catch (error) {
-      console.error('OIDC auth error:', error);
-      return { error: 'Authentication failed' };
-    }
-  };
-
-  const handleOIDCCallback = async (code: string, state: string) => {
-    try {
-      const response = await supabase.functions.invoke('oidc-auth', {
-        body: { action: 'callback', code, state }
-      });
-
-      if (response.error || !response.data?.success) {
-        return { error: response.data?.error || 'OIDC authentication failed' };
-      }
-
-      const userData = response.data.user;
-      localStorage.setItem('oidc_auth', JSON.stringify(userData));
-      
-      setUser({
-        id: userData.id,
-        email: userData.email,
-        display_name: userData.display_name,
-        role: userData.role,
-        auth_type: 'oidc'
-      });
-
-      return {};
-    } catch (error) {
-      console.error('OIDC callback error:', error);
-      return { error: 'Authentication failed' };
-    }
-  };
-
   const signOut = async () => {
     localStorage.removeItem('username_auth');
-    localStorage.removeItem('entra_auth');
-    localStorage.removeItem('oidc_auth');
     setUser(null);
     setSession(null);
   };
@@ -201,9 +93,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     session,
     loading,
     signInWithUsername,
-    signInWithEntra,
-    signInWithOIDC,
-    handleOIDCCallback,
     signOut
   };
 
