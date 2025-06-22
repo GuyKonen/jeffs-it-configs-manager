@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,9 +7,22 @@ import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Settings, Key, Zap, MessageSquare, Cloud } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import UserProfile from '@/components/UserProfile';
 
 const Index = () => {
   const { toast } = useToast();
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+
+  // Redirect to auth if not logged in
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/auth');
+    }
+  }, [user, loading, navigate]);
+
   const [configs, setConfigs] = useState({
     // N8N Configuration
     N8N_ENCRYPTION_KEY: '',
@@ -48,9 +60,26 @@ const Index = () => {
     console.log('Saving configuration:', configs);
   };
 
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
+  }
+
+  // Don't render if user is not authenticated
+  if (!user) {
+    return null;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
       <div className="max-w-4xl mx-auto space-y-8">
+        {/* User Profile */}
+        <UserProfile />
+
         {/* Header */}
         <div className="text-center space-y-4">
           <div className="flex items-center justify-center space-x-3 mb-4">
