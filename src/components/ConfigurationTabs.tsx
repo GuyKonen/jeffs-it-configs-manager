@@ -28,6 +28,8 @@ const ConfigurationTabs = () => {
     // Open WebUI Configuration
     AUTO_CONTINUE_PROMPTS: false,
     ENABLE_CONVERSATION_TEMPLATES: false,
+    OPEN_WEBUI_EMAIL: 'admin@admin.com',
+    OPEN_WEBUI_PASSWORD: 'Shalom123!',
     
     // Azure MCP Configuration
     AZURE_TENANT_ID: '',
@@ -197,10 +199,35 @@ const ConfigurationTabs = () => {
             <CardTitle className="text-xl">Open WebUI Configuration</CardTitle>
           </div>
           <CardDescription>
-            Configure Open WebUI interface settings
+            Configure Open WebUI interface settings and authentication
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="webui-email">Admin Email</Label>
+              <Input
+                id="webui-email"
+                type="email"
+                placeholder="admin@admin.com"
+                value={configs.OPEN_WEBUI_EMAIL}
+                onChange={(e) => handleInputChange('OPEN_WEBUI_EMAIL', e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="webui-password">Admin Password</Label>
+              <Input
+                id="webui-password"
+                type="password"
+                placeholder="Enter admin password"
+                value={configs.OPEN_WEBUI_PASSWORD}
+                onChange={(e) => handleInputChange('OPEN_WEBUI_PASSWORD', e.target.value)}
+              />
+            </div>
+          </div>
+          
+          <Separator />
+          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">

@@ -37,7 +37,9 @@ serve(async (req) => {
       // Open WebUI Configuration
       envContent += '# --- open webui ---\n';
       envContent += `AUTO_CONTINUE_PROMPTS=${configs.AUTO_CONTINUE_PROMPTS || false}\n`;
-      envContent += `ENABLE_CONVERSATION_TEMPLATES=${configs.ENABLE_CONVERSATION_TEMPLATES || false}\n\n`;
+      envContent += `ENABLE_CONVERSATION_TEMPLATES=${configs.ENABLE_CONVERSATION_TEMPLATES || false}\n`;
+      envContent += `OPEN_WEBUI_EMAIL=${configs.OPEN_WEBUI_EMAIL || 'admin@admin.com'}\n`;
+      envContent += `OPEN_WEBUI_PASSWORD=${configs.OPEN_WEBUI_PASSWORD || 'Shalom123!'}\n\n`;
 
       // Azure MCP Configuration
       envContent += '# --- Azure MCP ---\n';

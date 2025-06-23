@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ExternalLink } from 'lucide-react';
 
@@ -18,6 +18,33 @@ const ProxyFrame: React.FC<ProxyFrameProps> = ({
   icon: Icon, 
   fullScreen = false
 }) => {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  useEffect(() => {
+    // If the URL is localhost:3000, we need to handle authentication
+    if (url.includes('127.0.0.1:3000') || url.includes('localhost:3000')) {
+      const iframe = iframeRef.current;
+      if (iframe) {
+        // Listen for iframe load events to handle authentication
+        const handleLoad = () => {
+          try {
+            // Post authentication credentials to the iframe
+            iframe.contentWindow?.postMessage({
+              type: 'auth',
+              email: 'admin@admin.com',
+              password: 'Shalom123!'
+            }, '*');
+          } catch (error) {
+            console.log('Cross-origin frame access blocked (expected)');
+          }
+        };
+        
+        iframe.addEventListener('load', handleLoad);
+        return () => iframe.removeEventListener('load', handleLoad);
+      }
+    }
+  }, [url]);
+
   if (fullScreen) {
     return (
       <div className="w-full h-screen">
@@ -28,6 +55,7 @@ const ProxyFrame: React.FC<ProxyFrameProps> = ({
         </div>
         <div className="w-full h-full">
           <iframe 
+            ref={iframeRef}
             src={url}
             className="w-full h-full border-0"
             title={title}
@@ -52,6 +80,7 @@ const ProxyFrame: React.FC<ProxyFrameProps> = ({
       <CardContent className="pt-0">
         <div style={{ height: '600px' }} className="border rounded-lg overflow-hidden">
           <iframe 
+            ref={iframeRef}
             src={url}
             className="w-full h-full border-0"
             title={title}
