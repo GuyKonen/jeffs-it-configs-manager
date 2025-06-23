@@ -6,12 +6,33 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Menu, Search, Plus, MessageSquare, Settings, User } from 'lucide-react';
 
-interface ChatSidebarProps {
-  onNewChat: () => void;
+interface Message {
+  id: string;
+  type: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
 }
 
-const ChatSidebar = ({ onNewChat }: ChatSidebarProps) => {
+interface ChatSession {
+  id: string;
+  title: string;
+  messages: Message[];
+  timestamp: Date;
+}
+
+interface ChatSidebarProps {
+  onNewChat: () => void;
+  sessions: ChatSession[];
+  currentSessionId: string | null;
+  onSessionSelect: (sessionId: string) => void;
+}
+
+const ChatSidebar = ({ onNewChat, sessions, currentSessionId, onSessionSelect }: ChatSidebarProps) => {
   const [searchTerm, setSearchTerm] = useState('');
+
+  const filteredSessions = sessions.filter(session =>
+    session.title.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="h-full flex flex-col">
@@ -75,12 +96,39 @@ const ChatSidebar = ({ onNewChat }: ChatSidebarProps) => {
         </div>
       </div>
 
-      {/* Chat History - Now Empty */}
+      {/* Chat History */}
       <ScrollArea className="flex-1">
-        <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-          <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
-          <p className="text-sm">No chat history</p>
-        </div>
+        {filteredSessions.length === 0 ? (
+          <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+            <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            <p className="text-sm">No chat history</p>
+          </div>
+        ) : (
+          <div className="p-2">
+            {filteredSessions.map((session) => (
+              <Button
+                key={session.id}
+                variant="ghost"
+                className={`w-full justify-start p-3 mb-1 h-auto ${
+                  currentSessionId === session.id 
+                    ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-900 dark:text-orange-100' 
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+                onClick={() => onSessionSelect(session.id)}
+              >
+                <div className="flex flex-col items-start w-full">
+                  <div className="flex items-center gap-2 w-full">
+                    <MessageSquare className="h-4 w-4 flex-shrink-0" />
+                    <span className="text-sm font-medium truncate">{session.title}</span>
+                  </div>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 ml-6">
+                    {session.timestamp.toLocaleDateString()}
+                  </span>
+                </div>
+              </Button>
+            ))}
+          </div>
+        )}
       </ScrollArea>
 
       {/* User Profile */}

@@ -148,12 +148,6 @@ const ChatWindow = ({ messages }: ChatWindowProps) => {
               ))}
             </div>
           )}
-          
-          {/* Activation Notice */}
-          <div className="text-center py-8 border-t border-gray-200 dark:border-gray-700 mt-8">
-            <p className="text-sm text-gray-500 dark:text-gray-400">Activate Windows</p>
-            <p className="text-xs text-gray-400 dark:text-gray-500">Go to Settings to activate Windows</p>
-          </div>
         </div>
       </ScrollArea>
     </div>
