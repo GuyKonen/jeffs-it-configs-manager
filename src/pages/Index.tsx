@@ -1,13 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Settings, Users, MessageSquare, Cloud } from 'lucide-react';
+import { Settings, Users, MessageSquare, Cloud, TestTube } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import UserProfile from '@/components/UserProfile';
 import UserManagement from '@/components/UserManagement';
 import ConfigurationTabs from '@/components/ConfigurationTabs';
 import ProxyFrame from '@/components/ProxyFrame';
+import OpenWebUIInterface from '@/components/OpenWebUIInterface';
 
 const Index = () => {
   const { user, loading } = useAuth();
@@ -56,7 +57,7 @@ const Index = () => {
         {/* Main Tabs */}
         <Tabs defaultValue="config" className="w-full">
           <div className="px-6">
-            <TabsList className="grid w-full grid-cols-4 lg:w-fit lg:mx-auto">
+            <TabsList className="grid w-full grid-cols-5 lg:w-fit lg:mx-auto">
               <TabsTrigger value="config" className="flex items-center gap-2">
                 <Settings className="h-4 w-4" />
                 Config
@@ -74,6 +75,10 @@ const Index = () => {
               <TabsTrigger value="azure" className="flex items-center gap-2">
                 <Cloud className="h-4 w-4" />
                 Azure
+              </TabsTrigger>
+              <TabsTrigger value="test" className="flex items-center gap-2">
+                <TestTube className="h-4 w-4" />
+                Test
               </TabsTrigger>
             </TabsList>
           </div>
@@ -106,6 +111,10 @@ const Index = () => {
               icon={Cloud}
               fullScreen={true}
             />
+          </TabsContent>
+
+          <TabsContent value="test" className="mt-4">
+            <OpenWebUIInterface />
           </TabsContent>
         </Tabs>
       </div>
