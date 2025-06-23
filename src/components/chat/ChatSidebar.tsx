@@ -6,49 +6,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Menu, Search, Plus, MessageSquare, Settings, User } from 'lucide-react';
 
-const ChatSidebar = () => {
+interface ChatSidebarProps {
+  onNewChat: () => void;
+}
+
+const ChatSidebar = ({ onNewChat }: ChatSidebarProps) => {
   const [searchTerm, setSearchTerm] = useState('');
-
-  // Mock chat history data matching the style
-  const todayChats = [
-    { id: 1, title: 'test', active: false },
-    { id: 2, title: 'test', active: false },
-  ];
-
-  const recentChats = [
-    { id: 3, title: 'Azure AD Assistant Test', active: false },
-    { id: 4, title: 'Azure Login Help', active: false },
-    { id: 5, title: 'Azure Assistant Introduction', active: false },
-    { id: 6, title: 'Azure Command Test', active: true },
-  ];
-
-  const yesterdayChats = [
-    { id: 7, title: 'Azure Assistant Test', active: false },
-    { id: 8, title: 'hello', active: false },
-    { id: 9, title: 'test', active: false },
-  ];
-
-  const olderChats = [
-    { id: 10, title: 'Network Operations Center O', active: false },
-    { id: 11, title: 'Azure VM Details', active: false },
-    { id: 12, title: 'Azure Subscription Not Found', active: false },
-    { id: 13, title: 'Azure AD User List', active: false },
-    { id: 14, title: 'Azure Assistant Test', active: false },
-  ];
-
-  const renderChatItem = (chat: any) => (
-    <div
-      key={chat.id}
-      className={`flex items-center gap-3 p-2 mx-2 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 ${
-        chat.active ? 'bg-gray-100 dark:bg-gray-700' : ''
-      }`}
-    >
-      <MessageSquare className="h-4 w-4 text-gray-500 flex-shrink-0" />
-      <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
-        {chat.title}
-      </span>
-    </div>
-  );
 
   return (
     <div className="h-full flex flex-col">
@@ -56,12 +19,16 @@ const ChatSidebar = () => {
       <div className="p-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-3 mb-4">
           <Menu className="h-5 w-5 text-gray-600" />
-          <div className="flex items-center gap-2">
+          <Button 
+            variant="ghost" 
+            className="flex items-center gap-2 p-0 hover:bg-transparent"
+            onClick={onNewChat}
+          >
             <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
               <span className="text-white text-xs font-bold">OI</span>
             </div>
             <span className="font-semibold text-gray-900 dark:text-white">New Chat</span>
-          </div>
+          </Button>
         </div>
         
         {/* Model Selection */}
@@ -108,31 +75,11 @@ const ChatSidebar = () => {
         </div>
       </div>
 
-      {/* Chat History */}
+      {/* Chat History - Now Empty */}
       <ScrollArea className="flex-1">
-        <div className="p-2">
-          {/* Today */}
-          <div className="mb-4">
-            <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 px-2 mb-2">Today</h3>
-            {todayChats.map(renderChatItem)}
-          </div>
-
-          {/* Recent */}
-          <div className="mb-4">
-            {recentChats.map(renderChatItem)}
-          </div>
-
-          {/* Yesterday */}
-          <div className="mb-4">
-            <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 px-2 mb-2">Yesterday</h3>
-            {yesterdayChats.map(renderChatItem)}
-          </div>
-
-          {/* Previous 7 days */}
-          <div className="mb-4">
-            <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 px-2 mb-2">Previous 7 days</h3>
-            {olderChats.map(renderChatItem)}
-          </div>
+        <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+          <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
+          <p className="text-sm">No chat history</p>
         </div>
       </ScrollArea>
 

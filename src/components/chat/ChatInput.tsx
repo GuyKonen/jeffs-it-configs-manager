@@ -4,21 +4,45 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Send, Mic, Plus, Square } from 'lucide-react';
 
-const ChatInput = () => {
+interface ChatInputProps {
+  onMessageSent: (userMessage: string, aiResponse: string) => void;
+}
+
+const ChatInput = ({ onMessageSent }: ChatInputProps) => {
   const [message, setMessage] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!message.trim() || isGenerating) return;
     
-    console.log('Sending message:', message);
+    const userMessage = message.trim();
+    console.log('Sending message:', userMessage);
     setMessage('');
     setIsGenerating(true);
     
-    // Simulate AI response generation
-    setTimeout(() => {
+    try {
+      const response = await fetch('http://localhost:8921/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message: userMessage }),
+      });
+      
+      const data = await response.json();
+      console.log('API Response:', data);
+      
+      if (data.status === 'success') {
+        onMessageSent(userMessage, data.output);
+      } else {
+        onMessageSent(userMessage, 'Error: Failed to get response from API');
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      onMessageSent(userMessage, 'Error: Could not connect to chat API');
+    } finally {
       setIsGenerating(false);
-    }, 3000);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
