@@ -1,8 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ChatSidebar from '@/components/chat/ChatSidebar';
 import ChatWindow from '@/components/chat/ChatWindow';
 import ChatInput from '@/components/chat/ChatInput';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 
 interface Message {
   id: string;
@@ -22,26 +24,111 @@ const OpenWebUIInterface = () => {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const createNewSession = (firstMessage?: string): string => {
-    const newSessionId = `session-${Date.now()}`;
-    const title = firstMessage ? firstMessage.slice(0, 50) + (firstMessage.length > 50 ? '...' : '') : 'New Chat';
-    
-    const newSession: ChatSession = {
-      id: newSessionId,
-      title,
-      messages: [],
-      timestamp: new Date(),
-    };
-    
-    setSessions(prev => [newSession, ...prev]);
-    setCurrentSessionId(newSessionId);
-    setMessages([]);
-    
-    return newSessionId;
+  // Load sessions from database on component mount
+  useEffect(() => {
+    loadSessions();
+  }, []);
+
+  const loadSessions = async () => {
+    try {
+      const { data: sessionsData, error: sessionsError } = await supabase
+        .from('chat_sessions')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (sessionsError) throw sessionsError;
+
+      const { data: messagesData, error: messagesError } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      if (messagesError) throw messagesError;
+
+      const sessionsWithMessages = sessionsData?.map(session => ({
+        id: session.id,
+        title: session.title,
+        timestamp: new Date(session.created_at),
+        messages: messagesData?.filter(msg => msg.session_id === session.id).map(msg => ({
+          id: msg.id,
+          type: msg.type as 'user' | 'assistant',
+          content: msg.content,
+          timestamp: new Date(msg.created_at)
+        })) || []
+      })) || [];
+
+      setSessions(sessionsWithMessages);
+    } catch (error) {
+      console.error('Error loading sessions:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load chat sessions",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleMessageSent = (userMessage: string, aiResponse: string) => {
+  const createNewSession = async (firstMessage: string): Promise<string> => {
+    try {
+      const title = firstMessage.slice(0, 50) + (firstMessage.length > 50 ? '...' : '');
+      
+      const { data, error } = await supabase
+        .from('chat_sessions')
+        .insert({ title })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const newSession: ChatSession = {
+        id: data.id,
+        title: data.title,
+        messages: [],
+        timestamp: new Date(data.created_at),
+      };
+      
+      setSessions(prev => [newSession, ...prev]);
+      setCurrentSessionId(data.id);
+      setMessages([]);
+      
+      return data.id;
+    } catch (error) {
+      console.error('Error creating session:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create new chat session",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
+  const saveMessage = async (sessionId: string, type: 'user' | 'assistant', content: string) => {
+    try {
+      const { error } = await supabase
+        .from('chat_messages')
+        .insert({
+          session_id: sessionId,
+          type,
+          content
+        });
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error saving message:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save message",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleMessageSent = async (userMessage: string, aiResponse: string) => {
     const userMsg: Message = {
       id: `user-${Date.now()}`,
       type: 'user',
@@ -61,11 +148,15 @@ const OpenWebUIInterface = () => {
     // If no current session, create one
     let sessionId = currentSessionId;
     if (!sessionId) {
-      sessionId = createNewSession(userMessage);
+      sessionId = await createNewSession(userMessage);
     }
     
     // Update messages state
     setMessages(prev => [...prev, ...newMessages]);
+    
+    // Save messages to database
+    await saveMessage(sessionId, 'user', userMessage);
+    await saveMessage(sessionId, 'assistant', aiResponse);
     
     // Update session in sessions array
     setSessions(prev => prev.map(session => 
@@ -87,6 +178,14 @@ const OpenWebUIInterface = () => {
       setMessages(session.messages);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="text-lg">Loading chat history...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen flex bg-gray-50 dark:bg-gray-900">

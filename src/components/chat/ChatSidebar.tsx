@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Menu, Search, Plus, MessageSquare, Settings, User } from 'lucide-react';
+import { Menu, Search, MessageSquare, Settings } from 'lucide-react';
 
 interface Message {
   id: string;
@@ -46,7 +46,7 @@ const ChatSidebar = ({ onNewChat, sessions, currentSessionId, onSessionSelect }:
             onClick={onNewChat}
           >
             <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
-              <span className="text-white text-xs font-bold">OI</span>
+              <span className="text-white text-xs font-bold">Jeff</span>
             </div>
             <span className="font-semibold text-gray-900 dark:text-white">New Chat</span>
           </Button>
