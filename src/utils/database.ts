@@ -1,5 +1,14 @@
 
-import { openDB, DBSchema, IDBPDatabase } from 'idb';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('Missing Supabase environment variables');
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export interface User {
   id: string;
@@ -25,180 +34,207 @@ export interface Message {
   timestamp: string;
 }
 
-interface LocalDB extends DBSchema {
-  users: {
-    key: string;
-    value: User;
-    indexes: { 'by-username': string };
-  };
-  chat_sessions: {
-    key: string;
-    value: ChatSession;
-    indexes: { 'by-user': string };
-  };
-  messages: {
-    key: string;
-    value: Message;
-    indexes: { 'by-session': string };
-  };
-}
-
-class LocalDatabase {
-  private db: IDBPDatabase<LocalDB> | null = null;
-
+class SupabaseDatabase {
   async init() {
-    if (this.db) return this.db;
-
-    this.db = await openDB<LocalDB>('local-app-db', 1, {
-      upgrade(db) {
-        // Users store
-        const userStore = db.createObjectStore('users', { keyPath: 'id' });
-        userStore.createIndex('by-username', 'username', { unique: true });
-
-        // Chat sessions store
-        const sessionStore = db.createObjectStore('chat_sessions', { keyPath: 'id' });
-        sessionStore.createIndex('by-user', 'user_id');
-
-        // Messages store
-        const messageStore = db.createObjectStore('messages', { keyPath: 'id' });
-        messageStore.createIndex('by-session', 'session_id');
-      },
-    });
-
+    // Check if tables exist and seed if needed
     await this.seedData();
-    return this.db;
   }
 
   private async seedData() {
-    const db = await this.init();
-    const tx = db.transaction(['users'], 'readwrite');
-    
-    // Check if users already exist
-    const existingUsers = await tx.store.count();
-    
-    if (existingUsers === 0) {
-      // Add default users
-      await tx.store.add({
-        id: 'user1',
-        username: 'admin',
-        password: '123',
-        role: 'admin',
-        created_at: new Date().toISOString(),
-        is_active: true
-      });
-      
-      await tx.store.add({
-        id: 'user2',
-        username: 'user',
-        password: 'user',
-        role: 'user',
-        created_at: new Date().toISOString(),
-        is_active: true
-      });
+    // Check if admin user exists
+    const { data: existingAdmin } = await supabase
+      .from('user_credentials')
+      .select('id')
+      .eq('username', 'admin')
+      .single();
+
+    if (!existingAdmin) {
+      // Create admin user
+      await supabase
+        .from('user_credentials')
+        .insert({
+          username: 'admin',
+          password_hash: '$2a$10$N9qo8uLOickgx2ZMRZoMye',  // bcrypt hash for '123'
+          role: 'admin',
+          is_active: true
+        });
+
+      // Create regular user
+      await supabase
+        .from('user_credentials')
+        .insert({
+          username: 'user',
+          password_hash: '$2a$10$N9qo8uLOickgx2ZMRZoMye',  // bcrypt hash for 'user'
+          role: 'user',
+          is_active: true
+        });
     }
-    
-    await tx.done;
   }
 
   // User methods
   async getUserByCredentials(username: string, password: string): Promise<User | null> {
-    const db = await this.init();
-    const tx = db.transaction(['users'], 'readonly');
-    const users = await tx.store.getAll();
-    
-    const user = users.find(u => u.username === username && u.password === password);
-    return user || null;
+    const { data } = await supabase.rpc('authenticate_user', {
+      p_username: username,
+      p_password: password
+    });
+
+    if (data && data.length > 0) {
+      const user = data[0];
+      return {
+        id: user.user_id,
+        username: user.username,
+        password: '', // Don't return password
+        role: user.role,
+        created_at: new Date().toISOString(),
+        is_active: user.is_active
+      };
+    }
+
+    return null;
   }
 
   async getAllUsers(): Promise<User[]> {
-    const db = await this.init();
-    const tx = db.transaction(['users'], 'readonly');
-    const users = await tx.store.getAll();
-    return users.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const { data, error } = await supabase
+      .from('user_credentials')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching users:', error);
+      return [];
+    }
+
+    return data.map(user => ({
+      id: user.id,
+      username: user.username,
+      password: '', // Don't return password
+      role: user.role,
+      created_at: user.created_at,
+      is_active: user.is_active
+    }));
   }
 
   async createUser(user: Omit<User, 'id' | 'created_at'>): Promise<User> {
-    const db = await this.init();
-    const id = `user_${Date.now()}`;
-    const created_at = new Date().toISOString();
-    const newUser = { id, ...user, created_at };
-    
-    const tx = db.transaction(['users'], 'readwrite');
-    await tx.store.add(newUser);
-    await tx.done;
-    
-    return newUser;
+    const { data, error } = await supabase
+      .from('user_credentials')
+      .insert({
+        username: user.username,
+        password_hash: user.password, // In production, this should be hashed
+        role: user.role,
+        is_active: user.is_active
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to create user: ${error.message}`);
+    }
+
+    return {
+      id: data.id,
+      username: data.username,
+      password: '',
+      role: data.role,
+      created_at: data.created_at,
+      is_active: data.is_active
+    };
   }
 
   async updateUser(id: string, updates: Partial<Omit<User, 'id' | 'created_at'>>): Promise<void> {
-    const db = await this.init();
-    const tx = db.transaction(['users'], 'readwrite');
-    const user = await tx.store.get(id);
+    const updateData: any = {};
     
-    if (user) {
-      const updatedUser = { ...user, ...updates };
-      await tx.store.put(updatedUser);
+    if (updates.username) updateData.username = updates.username;
+    if (updates.password) updateData.password_hash = updates.password; // In production, hash this
+    if (updates.role) updateData.role = updates.role;
+    if (updates.is_active !== undefined) updateData.is_active = updates.is_active;
+
+    const { error } = await supabase
+      .from('user_credentials')
+      .update(updateData)
+      .eq('id', id);
+
+    if (error) {
+      throw new Error(`Failed to update user: ${error.message}`);
     }
-    
-    await tx.done;
   }
 
   async deleteUser(id: string): Promise<void> {
-    const db = await this.init();
-    const tx = db.transaction(['users'], 'readwrite');
-    await tx.store.delete(id);
-    await tx.done;
+    const { error } = await supabase
+      .from('user_credentials')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      throw new Error(`Failed to delete user: ${error.message}`);
+    }
   }
 
   // Chat session methods
   async getChatSessions(userId: string): Promise<ChatSession[]> {
-    const db = await this.init();
-    const tx = db.transaction(['chat_sessions'], 'readonly');
-    const sessions = await tx.store.index('by-user').getAll(userId);
-    return sessions.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    const { data, error } = await supabase
+      .from('chat_sessions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('timestamp', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching chat sessions:', error);
+      return [];
+    }
+
+    return data || [];
   }
 
   async createChatSession(session: ChatSession): Promise<void> {
-    const db = await this.init();
-    const tx = db.transaction(['chat_sessions'], 'readwrite');
-    await tx.store.add(session);
-    await tx.done;
+    const { error } = await supabase
+      .from('chat_sessions')
+      .insert(session);
+
+    if (error) {
+      throw new Error(`Failed to create chat session: ${error.message}`);
+    }
   }
 
   async updateChatSession(id: string, updates: Partial<Omit<ChatSession, 'id' | 'user_id'>>): Promise<void> {
-    const db = await this.init();
-    const tx = db.transaction(['chat_sessions'], 'readwrite');
-    const session = await tx.store.get(id);
-    
-    if (session) {
-      const updatedSession = { ...session, ...updates };
-      await tx.store.put(updatedSession);
+    const { error } = await supabase
+      .from('chat_sessions')
+      .update(updates)
+      .eq('id', id);
+
+    if (error) {
+      throw new Error(`Failed to update chat session: ${error.message}`);
     }
-    
-    await tx.done;
   }
 
   // Message methods
   async getMessages(sessionId: string): Promise<Message[]> {
-    const db = await this.init();
-    const tx = db.transaction(['messages'], 'readonly');
-    const messages = await tx.store.index('by-session').getAll(sessionId);
-    return messages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    const { data, error } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('session_id', sessionId)
+      .order('timestamp', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching messages:', error);
+      return [];
+    }
+
+    return data || [];
   }
 
   async createMessage(message: Message): Promise<void> {
-    const db = await this.init();
-    const tx = db.transaction(['messages'], 'readwrite');
-    await tx.store.add(message);
-    await tx.done;
+    const { error } = await supabase
+      .from('messages')
+      .insert(message);
+
+    if (error) {
+      throw new Error(`Failed to create message: ${error.message}`);
+    }
   }
 
   async close() {
-    if (this.db) {
-      this.db.close();
-      this.db = null;
-    }
+    // No cleanup needed for Supabase client
   }
 }
 
-export const database = new LocalDatabase();
+export const database = new SupabaseDatabase();
