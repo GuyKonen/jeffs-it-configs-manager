@@ -72,7 +72,7 @@ const OpenWebUIInterface = () => {
 
             const formattedMessages = messagesData?.map(msg => ({
               id: msg.id,
-              type: msg.role as 'user' | 'assistant',
+              type: msg.type as 'user' | 'assistant',
               content: msg.content,
               timestamp: new Date(msg.created_at)
             })) || [];
@@ -155,7 +155,7 @@ const OpenWebUIInterface = () => {
         .from('chat_messages')
         .insert({
           session_id: sessionId,
-          role: 'user',
+          type: 'user',
           content: content
         });
 
@@ -197,7 +197,7 @@ const OpenWebUIInterface = () => {
           .from('chat_messages')
           .insert({
             session_id: sessionId,
-            role: 'assistant',
+            type: 'assistant',
             content: aiMessage.content
           });
 
