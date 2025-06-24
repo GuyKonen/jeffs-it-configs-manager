@@ -58,10 +58,10 @@ const UserManagement = () => {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  const fetchUsers = () => {
+  const fetchUsers = async () => {
     setIsLoading(true);
     try {
-      const allUsers = database.getAllUsers();
+      const allUsers = await database.getAllUsers();
       setUsers(allUsers);
     } catch (error: any) {
       toast({
@@ -78,17 +78,17 @@ const UserManagement = () => {
     fetchUsers();
   }, []);
 
-  const updateUser = (userId: string, userData: { password?: string; role?: string }) => {
+  const updateUser = async (userId: string, userData: { password?: string; role?: string }) => {
     try {
       setIsLoading(true);
-      database.updateUser(userId, userData);
+      await database.updateUser(userId, userData);
       
       toast({
         title: "Success",
         description: "User updated successfully",
       });
 
-      fetchUsers();
+      await fetchUsers();
       setIsEditDialogOpen(false);
     } catch (error: any) {
       toast({
@@ -101,17 +101,17 @@ const UserManagement = () => {
     }
   };
 
-  const deleteUser = (userId: string) => {
+  const deleteUser = async (userId: string) => {
     try {
       setIsLoading(true);
-      database.deleteUser(userId);
+      await database.deleteUser(userId);
 
       toast({
         title: "Success",
         description: "User deleted successfully",
       });
 
-      fetchUsers();
+      await fetchUsers();
       setIsDeleteDialogOpen(false);
     } catch (error: any) {
       toast({
@@ -124,11 +124,11 @@ const UserManagement = () => {
     }
   };
 
-  const createUser = (userData: { username: string; password: string; role: string }) => {
+  const createUser = async (userData: { username: string; password: string; role: string }) => {
     try {
       setIsLoading(true);
       
-      database.createUser({
+      await database.createUser({
         username: userData.username,
         password: userData.password,
         role: userData.role,
@@ -140,7 +140,7 @@ const UserManagement = () => {
         description: "User created successfully",
       });
 
-      fetchUsers();
+      await fetchUsers();
       setNewUser({ username: '', password: '', role: 'user' });
       setIsCreateDialogOpen(false);
     } catch (error: any) {

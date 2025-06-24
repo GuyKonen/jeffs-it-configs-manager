@@ -1,5 +1,5 @@
 
-import Database from 'better-sqlite3';
+import { openDB, DBSchema, IDBPDatabase } from 'idb';
 
 export interface User {
   id: string;
@@ -25,138 +25,179 @@ export interface Message {
   timestamp: string;
 }
 
+interface LocalDB extends DBSchema {
+  users: {
+    key: string;
+    value: User;
+    indexes: { 'by-username': string };
+  };
+  chat_sessions: {
+    key: string;
+    value: ChatSession;
+    indexes: { 'by-user': string };
+  };
+  messages: {
+    key: string;
+    value: Message;
+    indexes: { 'by-session': string };
+  };
+}
+
 class LocalDatabase {
-  private db: Database.Database;
+  private db: IDBPDatabase<LocalDB> | null = null;
 
-  constructor() {
-    this.db = new Database('app.db');
-    this.initTables();
-    this.seedData();
+  async init() {
+    if (this.db) return this.db;
+
+    this.db = await openDB<LocalDB>('local-app-db', 1, {
+      upgrade(db) {
+        // Users store
+        const userStore = db.createObjectStore('users', { keyPath: 'id' });
+        userStore.createIndex('by-username', 'username', { unique: true });
+
+        // Chat sessions store
+        const sessionStore = db.createObjectStore('chat_sessions', { keyPath: 'id' });
+        sessionStore.createIndex('by-user', 'user_id');
+
+        // Messages store
+        const messageStore = db.createObjectStore('messages', { keyPath: 'id' });
+        messageStore.createIndex('by-session', 'session_id');
+      },
+    });
+
+    await this.seedData();
+    return this.db;
   }
 
-  private initTables() {
-    // Users table
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS users (
-        id TEXT PRIMARY KEY,
-        username TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        role TEXT NOT NULL,
-        created_at TEXT NOT NULL,
-        is_active BOOLEAN DEFAULT 1
-      )
-    `);
-
-    // Chat sessions table
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS chat_sessions (
-        id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        title TEXT NOT NULL,
-        timestamp TEXT NOT NULL,
-        FOREIGN KEY (user_id) REFERENCES users (id)
-      )
-    `);
-
-    // Messages table
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS messages (
-        id TEXT PRIMARY KEY,
-        session_id TEXT NOT NULL,
-        type TEXT NOT NULL,
-        content TEXT NOT NULL,
-        timestamp TEXT NOT NULL,
-        FOREIGN KEY (session_id) REFERENCES chat_sessions (id)
-      )
-    `);
-  }
-
-  private seedData() {
-    const checkUser = this.db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
+  private async seedData() {
+    const db = await this.init();
+    const tx = db.transaction(['users'], 'readwrite');
     
-    if (checkUser.count === 0) {
-      const insertUser = this.db.prepare(`
-        INSERT INTO users (id, username, password, role, created_at, is_active)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `);
-
-      insertUser.run('user1', 'admin', '123', 'admin', new Date().toISOString(), true);
-      insertUser.run('user2', 'user', 'user', 'user', new Date().toISOString(), true);
+    // Check if users already exist
+    const existingUsers = await tx.store.count();
+    
+    if (existingUsers === 0) {
+      // Add default users
+      await tx.store.add({
+        id: 'user1',
+        username: 'admin',
+        password: '123',
+        role: 'admin',
+        created_at: new Date().toISOString(),
+        is_active: true
+      });
+      
+      await tx.store.add({
+        id: 'user2',
+        username: 'user',
+        password: 'user',
+        role: 'user',
+        created_at: new Date().toISOString(),
+        is_active: true
+      });
     }
+    
+    await tx.done;
   }
 
   // User methods
-  getUserByCredentials(username: string, password: string): User | null {
-    const stmt = this.db.prepare('SELECT * FROM users WHERE username = ? AND password = ?');
-    return stmt.get(username, password) as User | null;
+  async getUserByCredentials(username: string, password: string): Promise<User | null> {
+    const db = await this.init();
+    const tx = db.transaction(['users'], 'readonly');
+    const users = await tx.store.getAll();
+    
+    const user = users.find(u => u.username === username && u.password === password);
+    return user || null;
   }
 
-  getAllUsers(): User[] {
-    const stmt = this.db.prepare('SELECT * FROM users ORDER BY created_at DESC');
-    return stmt.all() as User[];
+  async getAllUsers(): Promise<User[]> {
+    const db = await this.init();
+    const tx = db.transaction(['users'], 'readonly');
+    const users = await tx.store.getAll();
+    return users.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }
 
-  createUser(user: Omit<User, 'id' | 'created_at'>): User {
+  async createUser(user: Omit<User, 'id' | 'created_at'>): Promise<User> {
+    const db = await this.init();
     const id = `user_${Date.now()}`;
     const created_at = new Date().toISOString();
-    const stmt = this.db.prepare(`
-      INSERT INTO users (id, username, password, role, created_at, is_active)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
-    stmt.run(id, user.username, user.password, user.role, created_at, user.is_active);
+    const newUser = { id, ...user, created_at };
     
-    return { id, ...user, created_at };
+    const tx = db.transaction(['users'], 'readwrite');
+    await tx.store.add(newUser);
+    await tx.done;
+    
+    return newUser;
   }
 
-  updateUser(id: string, updates: Partial<Omit<User, 'id' | 'created_at'>>): void {
-    const fields = Object.keys(updates).map(key => `${key} = ?`).join(', ');
-    const values = Object.values(updates);
-    const stmt = this.db.prepare(`UPDATE users SET ${fields} WHERE id = ?`);
-    stmt.run(...values, id);
+  async updateUser(id: string, updates: Partial<Omit<User, 'id' | 'created_at'>>): Promise<void> {
+    const db = await this.init();
+    const tx = db.transaction(['users'], 'readwrite');
+    const user = await tx.store.get(id);
+    
+    if (user) {
+      const updatedUser = { ...user, ...updates };
+      await tx.store.put(updatedUser);
+    }
+    
+    await tx.done;
   }
 
-  deleteUser(id: string): void {
-    const stmt = this.db.prepare('DELETE FROM users WHERE id = ?');
-    stmt.run(id);
+  async deleteUser(id: string): Promise<void> {
+    const db = await this.init();
+    const tx = db.transaction(['users'], 'readwrite');
+    await tx.store.delete(id);
+    await tx.done;
   }
 
   // Chat session methods
-  getChatSessions(userId: string): ChatSession[] {
-    const stmt = this.db.prepare('SELECT * FROM chat_sessions WHERE user_id = ? ORDER BY timestamp DESC');
-    return stmt.all(userId) as ChatSession[];
+  async getChatSessions(userId: string): Promise<ChatSession[]> {
+    const db = await this.init();
+    const tx = db.transaction(['chat_sessions'], 'readonly');
+    const sessions = await tx.store.index('by-user').getAll(userId);
+    return sessions.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   }
 
-  createChatSession(session: ChatSession): void {
-    const stmt = this.db.prepare(`
-      INSERT INTO chat_sessions (id, user_id, title, timestamp)
-      VALUES (?, ?, ?, ?)
-    `);
-    stmt.run(session.id, session.user_id, session.title, session.timestamp);
+  async createChatSession(session: ChatSession): Promise<void> {
+    const db = await this.init();
+    const tx = db.transaction(['chat_sessions'], 'readwrite');
+    await tx.store.add(session);
+    await tx.done;
   }
 
-  updateChatSession(id: string, updates: Partial<Omit<ChatSession, 'id' | 'user_id'>>): void {
-    const fields = Object.keys(updates).map(key => `${key} = ?`).join(', ');
-    const values = Object.values(updates);
-    const stmt = this.db.prepare(`UPDATE chat_sessions SET ${fields} WHERE id = ?`);
-    stmt.run(...values, id);
+  async updateChatSession(id: string, updates: Partial<Omit<ChatSession, 'id' | 'user_id'>>): Promise<void> {
+    const db = await this.init();
+    const tx = db.transaction(['chat_sessions'], 'readwrite');
+    const session = await tx.store.get(id);
+    
+    if (session) {
+      const updatedSession = { ...session, ...updates };
+      await tx.store.put(updatedSession);
+    }
+    
+    await tx.done;
   }
 
   // Message methods
-  getMessages(sessionId: string): Message[] {
-    const stmt = this.db.prepare('SELECT * FROM messages WHERE session_id = ? ORDER BY timestamp ASC');
-    return stmt.all(sessionId) as Message[];
+  async getMessages(sessionId: string): Promise<Message[]> {
+    const db = await this.init();
+    const tx = db.transaction(['messages'], 'readonly');
+    const messages = await tx.store.index('by-session').getAll(sessionId);
+    return messages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
   }
 
-  createMessage(message: Message): void {
-    const stmt = this.db.prepare(`
-      INSERT INTO messages (id, session_id, type, content, timestamp)
-      VALUES (?, ?, ?, ?, ?)
-    `);
-    stmt.run(message.id, message.session_id, message.type, message.content, message.timestamp);
+  async createMessage(message: Message): Promise<void> {
+    const db = await this.init();
+    const tx = db.transaction(['messages'], 'readwrite');
+    await tx.store.add(message);
+    await tx.done;
   }
 
-  close() {
-    this.db.close();
+  async close() {
+    if (this.db) {
+      this.db.close();
+      this.db = null;
+    }
   }
 }
 

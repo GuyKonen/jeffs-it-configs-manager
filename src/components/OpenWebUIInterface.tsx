@@ -32,15 +32,15 @@ const OpenWebUIInterface = () => {
     loadChatSessions();
   }, [user]);
 
-  const loadChatSessions = () => {
+  const loadChatSessions = async () => {
     if (!user) return;
 
     try {
       console.log('Loading chat sessions for user:', user.id);
       
-      const dbSessions = database.getChatSessions(user.id);
-      const sessionsWithMessages = dbSessions.map(session => {
-        const messages = database.getMessages(session.id).map(msg => ({
+      const dbSessions = await database.getChatSessions(user.id);
+      const sessionsWithMessages = await Promise.all(dbSessions.map(async session => {
+        const messages = (await database.getMessages(session.id)).map(msg => ({
           ...msg,
           timestamp: new Date(msg.timestamp)
         }));
@@ -51,7 +51,7 @@ const OpenWebUIInterface = () => {
           messages,
           timestamp: new Date(session.timestamp)
         };
-      });
+      }));
       
       setSessions(sessionsWithMessages);
     } catch (error) {
@@ -94,7 +94,7 @@ const OpenWebUIInterface = () => {
           timestamp: new Date().toISOString()
         };
         
-        database.createChatSession(newSession);
+        await database.createChatSession(newSession);
         setCurrentSessionId(sessionId);
         console.log('Created new session:', sessionId);
       }
@@ -111,7 +111,7 @@ const OpenWebUIInterface = () => {
       setCurrentMessages(newMessages);
 
       // Save user message to database
-      database.createMessage({
+      await database.createMessage({
         id: userMessage.id,
         session_id: sessionId,
         type: userMessage.type,
@@ -150,7 +150,7 @@ const OpenWebUIInterface = () => {
         setCurrentMessages(finalMessages);
 
         // Save AI message to database
-        database.createMessage({
+        await database.createMessage({
           id: aiMessage.id,
           session_id: sessionId,
           type: aiMessage.type,
@@ -173,7 +173,7 @@ const OpenWebUIInterface = () => {
         setCurrentMessages(finalMessages);
 
         // Save error message to database
-        database.createMessage({
+        await database.createMessage({
           id: errorMessage.id,
           session_id: sessionId,
           type: errorMessage.type,
@@ -183,7 +183,7 @@ const OpenWebUIInterface = () => {
       }
 
       // Reload sessions to update the sidebar
-      loadChatSessions();
+      await loadChatSessions();
 
     } catch (error) {
       console.error('Error in handleSendMessage:', error);

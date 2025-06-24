@@ -30,18 +30,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for local auth in localStorage (for session persistence)
-    const localAuth = localStorage.getItem('local_auth');
-    if (localAuth) {
-      const userData = JSON.parse(localAuth);
-      setUser(userData);
-    }
-    setLoading(false);
+    // Initialize database and check for local auth
+    const initializeAuth = async () => {
+      try {
+        await database.init();
+        
+        // Check for local auth in localStorage (for session persistence)
+        const localAuth = localStorage.getItem('local_auth');
+        if (localAuth) {
+          const userData = JSON.parse(localAuth);
+          setUser(userData);
+        }
+      } catch (error) {
+        console.error('Failed to initialize database:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeAuth();
   }, []);
 
   const signInWithUsername = async (username: string, password: string) => {
     try {
-      const foundUser = database.getUserByCredentials(username, password);
+      const foundUser = await database.getUserByCredentials(username, password);
       
       if (!foundUser) {
         return { error: 'Invalid username or password' };
