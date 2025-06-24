@@ -67,9 +67,9 @@ const Index = () => {
                   Users
                 </TabsTrigger>
               )}
-              <TabsTrigger value="test" className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-800">
+              <TabsTrigger value="azure" className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-800">
                 <TestTube className="h-4 w-4" />
-                Test
+                Azure
               </TabsTrigger>
             </TabsList>
           </div>
@@ -84,7 +84,7 @@ const Index = () => {
             </TabsContent>
           )}
 
-          <TabsContent value="test" className="mt-0 bg-gray-50 dark:bg-gray-900 min-h-screen">
+          <TabsContent value="azure" className="mt-0 bg-white dark:bg-gray-800 min-h-screen">
             <OpenWebUIInterface />
           </TabsContent>
         </Tabs>

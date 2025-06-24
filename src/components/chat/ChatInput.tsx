@@ -21,7 +21,7 @@ const ChatInput = ({ onMessageSent }: ChatInputProps) => {
     setIsGenerating(true);
     
     try {
-      const response = await fetch('http://localhost:8921/chat', {
+      const response = await fetch('http://localhost:8000/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -62,7 +62,7 @@ const ChatInput = ({ onMessageSent }: ChatInputProps) => {
   };
 
   return (
-    <div className="p-6 bg-white dark:bg-gray-800">
+    <div className="p-4 bg-white dark:bg-gray-800">
       <div className="max-w-4xl mx-auto">
         <div className="relative">
           <Textarea
