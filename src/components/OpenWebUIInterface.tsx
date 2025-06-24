@@ -1,6 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
+import { Button } from '@/components/ui/button';
+import { MessageSquare, Cloud, Shield } from 'lucide-react';
 import ChatSidebar from '@/components/chat/ChatSidebar';
 import ChatWindow from '@/components/chat/ChatWindow';
 import { useAuth } from '@/contexts/AuthContext';
@@ -20,12 +22,15 @@ interface ChatSession {
   timestamp: Date;
 }
 
+type InterfaceMode = 'chat' | 'azure' | 'okta';
+
 const OpenWebUIInterface = () => {
   const { user } = useAuth();
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [currentMessages, setCurrentMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [interfaceMode, setInterfaceMode] = useState<InterfaceMode>('chat');
 
   // Load chat sessions from database
   useEffect(() => {
@@ -74,6 +79,20 @@ const OpenWebUIInterface = () => {
     }
   };
 
+  const getEndpointUrl = (mode: InterfaceMode): string => {
+    const baseUrl = 'http://localhost:8000';
+    switch (mode) {
+      case 'chat':
+        return `${baseUrl}/chat`;
+      case 'azure':
+        return `${baseUrl}/azure`;
+      case 'okta':
+        return `${baseUrl}/okta`;
+      default:
+        return `${baseUrl}/chat`;
+    }
+  };
+
   const handleSendMessage = async (content: string) => {
     if (!user) return;
 
@@ -119,10 +138,11 @@ const OpenWebUIInterface = () => {
         timestamp: userMessage.timestamp.toISOString()
       });
 
-      // Send to localhost:8000/chat
+      // Send to the appropriate endpoint based on current mode
       try {
-        console.log('Sending to localhost:8000/chat:', { message: content });
-        const response = await fetch('http://localhost:8000/chat', {
+        const endpoint = getEndpointUrl(interfaceMode);
+        console.log(`Sending to ${endpoint}:`, { message: content });
+        const response = await fetch(endpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -137,7 +157,7 @@ const OpenWebUIInterface = () => {
         }
 
         const data = await response.json();
-        console.log('Response from chat service:', data);
+        console.log('Response from service:', data);
         
         // Extract the output from the response structure
         let aiResponseContent = 'Sorry, I encountered an error processing your request.';
@@ -174,7 +194,7 @@ const OpenWebUIInterface = () => {
         const errorMessage: Message = {
           id: `msg_${Date.now() + 1}`,
           type: 'assistant',
-          content: 'Sorry, I\'m having trouble connecting to the AI service. Please make sure the chat service is running on localhost:8000.',
+          content: `Sorry, I'm having trouble connecting to the ${interfaceMode} service. Please make sure the service is running on localhost:8000.`,
           timestamp: new Date()
         };
 
@@ -202,31 +222,64 @@ const OpenWebUIInterface = () => {
   };
 
   return (
-    <div className="h-screen bg-stone-50 flex">
-      <ResizablePanelGroup direction="horizontal" className="h-full">
-        <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
-          <div className="h-full bg-white border-r border-stone-200 flex flex-col">
-            <ChatSidebar
-              onNewChat={handleNewChat}
-              sessions={sessions}
-              currentSessionId={currentSessionId}
-              onSessionSelect={handleSessionSelect}
-            />
-          </div>
-        </ResizablePanel>
-        
-        <ResizableHandle withHandle />
-        
-        <ResizablePanel defaultSize={80}>
-          <div className="h-full bg-white">
-            <ChatWindow
-              messages={currentMessages}
-              onSendMessage={handleSendMessage}
-              isLoading={isLoading}
-            />
-          </div>
-        </ResizablePanel>
-      </ResizablePanelGroup>
+    <div className="h-screen bg-stone-50 flex flex-col">
+      {/* Interface Mode Buttons */}
+      <div className="bg-white border-b border-stone-200 p-4">
+        <div className="flex items-center justify-center space-x-2">
+          <Button
+            variant={interfaceMode === 'chat' ? 'default' : 'outline'}
+            onClick={() => setInterfaceMode('chat')}
+            className="flex items-center gap-2"
+          >
+            <MessageSquare className="h-4 w-4" />
+            Chat
+          </Button>
+          <Button
+            variant={interfaceMode === 'azure' ? 'default' : 'outline'}
+            onClick={() => setInterfaceMode('azure')}
+            className="flex items-center gap-2"
+          >
+            <Cloud className="h-4 w-4" />
+            Azure
+          </Button>
+          <Button
+            variant={interfaceMode === 'okta' ? 'default' : 'outline'}
+            onClick={() => setInterfaceMode('okta')}
+            className="flex items-center gap-2"
+          >
+            <Shield className="h-4 w-4" />
+            Okta
+          </Button>
+        </div>
+      </div>
+
+      {/* Chat Interface */}
+      <div className="flex-1">
+        <ResizablePanelGroup direction="horizontal" className="h-full">
+          <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
+            <div className="h-full bg-white border-r border-stone-200 flex flex-col">
+              <ChatSidebar
+                onNewChat={handleNewChat}
+                sessions={sessions}
+                currentSessionId={currentSessionId}
+                onSessionSelect={handleSessionSelect}
+              />
+            </div>
+          </ResizablePanel>
+          
+          <ResizableHandle withHandle />
+          
+          <ResizablePanel defaultSize={80}>
+            <div className="h-full bg-white">
+              <ChatWindow
+                messages={currentMessages}
+                onSendMessage={handleSendMessage}
+                isLoading={isLoading}
+              />
+            </div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      </div>
     </div>
   );
 };

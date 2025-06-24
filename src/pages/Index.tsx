@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Settings, Users } from 'lucide-react';
+import { Settings, Users, Monitor } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import UserProfile from '@/components/UserProfile';
@@ -40,6 +40,7 @@ const Index = () => {
         {/* Header */}
         <div className="text-center space-y-2 px-6 py-4 bg-card border-b border-border">
           <div className="flex items-center justify-between">
+            <div className="w-64"></div>
             <div className="flex items-center justify-center space-x-3 flex-1">
               <div className="p-2 bg-primary rounded-full">
                 <img src="/lovable-uploads/414ac00c-0904-438a-b9cc-96ba875719a0.png" alt="Company Logo" className="h-6 w-6" />
@@ -67,9 +68,9 @@ const Index = () => {
                   Users
                 </TabsTrigger>
               )}
-              <TabsTrigger value="azure" className="flex items-center gap-2 data-[state=active]:bg-card">
-                <img src="/azure-icon.png" alt="Azure" className="h-4 w-4" />
-                Azure
+              <TabsTrigger value="interface" className="flex items-center gap-2 data-[state=active]:bg-card">
+                <Monitor className="h-4 w-4" />
+                Interface
               </TabsTrigger>
             </TabsList>
           </div>
@@ -84,7 +85,7 @@ const Index = () => {
             </TabsContent>
           )}
 
-          <TabsContent value="azure" className="mt-0 bg-card min-h-screen">
+          <TabsContent value="interface" className="mt-0 bg-card min-h-screen">
             <OpenWebUIInterface />
           </TabsContent>
         </Tabs>

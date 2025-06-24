@@ -86,7 +86,7 @@ const Auth = () => {
         <div className="text-center space-y-4 mb-8">
           <div className="flex items-center justify-center space-x-3">
             <div className="p-3 bg-primary rounded-full">
-              <img src="/lovable-uploads/uploaded-file.png" alt="Company Logo" className="h-8 w-8" />
+              <img src="/lovable-uploads/414ac00c-0904-438a-b9cc-96ba875719a0.png" alt="Company Logo" className="h-8 w-8" />
             </div>
             <h1 className="text-3xl font-bold text-slate-800">JeffFromIT</h1>
           </div>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,6 +7,7 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Users, Plus, Edit, Trash2, Shield, Key } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { database } from '@/utils/database';
@@ -268,63 +268,82 @@ const UserManagement = () => {
           <CardDescription>All registered users in the system ({users.length} total)</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {users.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                No users found. Try refreshing or create a new user.
-              </div>
-            ) : (
-              users.map((user) => (
-                <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center space-x-4">
-                    <div>
-                      <p className="font-medium">{user.username}</p>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
-                          {user.role}
+          {users.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No users found. Try refreshing or create a new user.
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Username</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>2FA</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {users.map((user) => (
+                  <TableRow key={user.id}>
+                    <TableCell className="font-medium">{user.username}</TableCell>
+                    <TableCell>
+                      <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
+                        {user.role}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={user.is_active ? 'default' : 'destructive'}>
+                        {user.is_active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {user.totp_enabled ? (
+                        <Badge variant="outline" className="text-green-600">
+                          <Shield className="h-3 w-3 mr-1" />
+                          Enabled
                         </Badge>
-                        {user.totp_enabled && (
-                          <Badge variant="outline" className="text-green-600">
-                            <Shield className="h-3 w-3 mr-1" />
-                            2FA
-                          </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-orange-600">
+                          Disabled
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end space-x-2">
+                        {!user.totp_enabled && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setupTotpForUser(user.id)}
+                          >
+                            <Key className="h-4 w-4 mr-1" />
+                            Setup 2FA
+                          </Button>
                         )}
-                        <Badge variant={user.is_active ? 'default' : 'destructive'}>
-                          {user.is_active ? 'Active' : 'Inactive'}
-                        </Badge>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => startEdit(user)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteUser(user.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    {!user.totp_enabled && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setupTotpForUser(user.id)}
-                      >
-                        <Key className="h-4 w-4 mr-1" />
-                        Setup 2FA
-                      </Button>
-                    )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => startEdit(user)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDeleteUser(user.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
