@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import ChatSidebar from '@/components/chat/ChatSidebar';
 import ChatWindow from '@/components/chat/ChatWindow';
-import ChatInput from '@/components/chat/ChatInput';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Message {
   id: string;
@@ -21,196 +21,240 @@ interface ChatSession {
 }
 
 const OpenWebUIInterface = () => {
+  const { user } = useAuth();
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [currentMessages, setCurrentMessages] = useState<Message[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Load sessions from database on component mount
+  // Load chat sessions from database
   useEffect(() => {
-    loadSessions();
-  }, []);
+    loadChatSessions();
+  }, [user]);
 
-  const loadSessions = async () => {
+  const loadChatSessions = async () => {
+    if (!user) return;
+
     try {
+      console.log('Loading chat sessions for user:', user.id);
+      
       const { data: sessionsData, error: sessionsError } = await supabase
         .from('chat_sessions')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (sessionsError) throw sessionsError;
+      if (sessionsError) {
+        console.error('Error loading sessions:', sessionsError);
+        return;
+      }
 
-      const { data: messagesData, error: messagesError } = await supabase
-        .from('chat_messages')
-        .select('*')
-        .order('created_at', { ascending: true });
+      console.log('Loaded sessions:', sessionsData);
 
-      if (messagesError) throw messagesError;
+      if (sessionsData && sessionsData.length > 0) {
+        const formattedSessions = await Promise.all(
+          sessionsData.map(async (session) => {
+            const { data: messagesData, error: messagesError } = await supabase
+              .from('chat_messages')
+              .select('*')
+              .eq('session_id', session.id)
+              .order('created_at', { ascending: true });
 
-      const sessionsWithMessages = sessionsData?.map(session => ({
-        id: session.id,
-        title: session.title,
-        timestamp: new Date(session.created_at),
-        messages: messagesData?.filter(msg => msg.session_id === session.id).map(msg => ({
-          id: msg.id,
-          type: msg.type as 'user' | 'assistant',
-          content: msg.content,
-          timestamp: new Date(msg.created_at)
-        })) || []
-      })) || [];
+            if (messagesError) {
+              console.error('Error loading messages for session:', session.id, messagesError);
+              return {
+                id: session.id,
+                title: session.title || 'New Chat',
+                messages: [],
+                timestamp: new Date(session.created_at)
+              };
+            }
 
-      setSessions(sessionsWithMessages);
+            const formattedMessages = messagesData?.map(msg => ({
+              id: msg.id,
+              type: msg.role as 'user' | 'assistant',
+              content: msg.content,
+              timestamp: new Date(msg.created_at)
+            })) || [];
+
+            return {
+              id: session.id,
+              title: session.title || 'New Chat',
+              messages: formattedMessages,
+              timestamp: new Date(session.created_at)
+            };
+          })
+        );
+
+        setSessions(formattedSessions);
+      }
     } catch (error) {
-      console.error('Error loading sessions:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load chat sessions",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
+      console.error('Error in loadChatSessions:', error);
     }
-  };
-
-  const createNewSession = async (firstMessage: string): Promise<string> => {
-    try {
-      const title = firstMessage.slice(0, 50) + (firstMessage.length > 50 ? '...' : '');
-      
-      const { data, error } = await supabase
-        .from('chat_sessions')
-        .insert({ title })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      const newSession: ChatSession = {
-        id: data.id,
-        title: data.title,
-        messages: [],
-        timestamp: new Date(data.created_at),
-      };
-      
-      setSessions(prev => [newSession, ...prev]);
-      setCurrentSessionId(data.id);
-      setMessages([]);
-      
-      return data.id;
-    } catch (error) {
-      console.error('Error creating session:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create new chat session",
-        variant: "destructive",
-      });
-      throw error;
-    }
-  };
-
-  const saveMessage = async (sessionId: string, type: 'user' | 'assistant', content: string) => {
-    try {
-      const { error } = await supabase
-        .from('chat_messages')
-        .insert({
-          session_id: sessionId,
-          type,
-          content
-        });
-
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error saving message:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save message",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleMessageSent = async (userMessage: string, aiResponse: string) => {
-    const userMsg: Message = {
-      id: `user-${Date.now()}`,
-      type: 'user',
-      content: userMessage,
-      timestamp: new Date(),
-    };
-    
-    const aiMsg: Message = {
-      id: `ai-${Date.now() + 1}`,
-      type: 'assistant',
-      content: aiResponse,
-      timestamp: new Date(),
-    };
-    
-    const newMessages = [userMsg, aiMsg];
-    
-    // If no current session, create one
-    let sessionId = currentSessionId;
-    if (!sessionId) {
-      sessionId = await createNewSession(userMessage);
-    }
-    
-    // Update messages state
-    setMessages(prev => [...prev, ...newMessages]);
-    
-    // Save messages to database
-    await saveMessage(sessionId, 'user', userMessage);
-    await saveMessage(sessionId, 'assistant', aiResponse);
-    
-    // Update session in sessions array
-    setSessions(prev => prev.map(session => 
-      session.id === sessionId 
-        ? { ...session, messages: [...session.messages, ...newMessages] }
-        : session
-    ));
   };
 
   const handleNewChat = () => {
+    console.log('Starting new chat');
     setCurrentSessionId(null);
-    setMessages([]);
+    setCurrentMessages([]);
   };
 
   const handleSessionSelect = (sessionId: string) => {
+    console.log('Selecting session:', sessionId);
     const session = sessions.find(s => s.id === sessionId);
     if (session) {
       setCurrentSessionId(sessionId);
-      setMessages(session.messages);
+      setCurrentMessages(session.messages);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="h-screen flex items-center justify-center" style={{ backgroundColor: 'rgb(247, 244, 237)' }}>
-        <div className="text-lg">Loading chat history...</div>
-      </div>
-    );
-  }
+  const handleSendMessage = async (content: string) => {
+    if (!user) return;
+
+    console.log('Sending message:', content);
+    setIsLoading(true);
+
+    try {
+      let sessionId = currentSessionId;
+
+      // Create new session if none exists
+      if (!sessionId) {
+        console.log('Creating new session');
+        const { data: newSession, error: sessionError } = await supabase
+          .from('chat_sessions')
+          .insert({
+            user_id: user.id,
+            title: content.substring(0, 50) + (content.length > 50 ? '...' : '')
+          })
+          .select()
+          .single();
+
+        if (sessionError) {
+          console.error('Error creating session:', sessionError);
+          setIsLoading(false);
+          return;
+        }
+
+        sessionId = newSession.id;
+        setCurrentSessionId(sessionId);
+        console.log('Created new session:', sessionId);
+      }
+
+      // Add user message
+      const userMessage: Message = {
+        id: Date.now().toString(),
+        type: 'user',
+        content,
+        timestamp: new Date()
+      };
+
+      setCurrentMessages(prev => [...prev, userMessage]);
+
+      // Save user message to database
+      const { error: userMessageError } = await supabase
+        .from('chat_messages')
+        .insert({
+          session_id: sessionId,
+          role: 'user',
+          content: content
+        });
+
+      if (userMessageError) {
+        console.error('Error saving user message:', userMessageError);
+      }
+
+      // Send to AI API (localhost:8000)
+      try {
+        const response = await fetch('http://localhost:8000/api/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: content,
+            conversation_id: sessionId
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        // Add AI response
+        const aiMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          type: 'assistant',
+          content: data.response || 'Sorry, I encountered an error processing your request.',
+          timestamp: new Date()
+        };
+
+        setCurrentMessages(prev => [...prev, aiMessage]);
+
+        // Save AI message to database
+        const { error: aiMessageError } = await supabase
+          .from('chat_messages')
+          .insert({
+            session_id: sessionId,
+            role: 'assistant',
+            content: aiMessage.content
+          });
+
+        if (aiMessageError) {
+          console.error('Error saving AI message:', aiMessageError);
+        }
+
+      } catch (apiError) {
+        console.error('API Error:', apiError);
+        
+        // Add error message
+        const errorMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          type: 'assistant',
+          content: 'Sorry, I\'m having trouble connecting to the AI service. Please make sure the server is running on localhost:8000.',
+          timestamp: new Date()
+        };
+
+        setCurrentMessages(prev => [...prev, errorMessage]);
+      }
+
+      // Reload sessions to update the sidebar
+      await loadChatSessions();
+
+    } catch (error) {
+      console.error('Error in handleSendMessage:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
-    <div className="h-[calc(100vh-140px)] flex" style={{ backgroundColor: 'rgb(247, 244, 237)' }}>
-      {/* Left Sidebar */}
-      <div className="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
-        <ChatSidebar 
-          onNewChat={handleNewChat}
-          sessions={sessions}
-          currentSessionId={currentSessionId}
-          onSessionSelect={handleSessionSelect}
-        />
-      </div>
-      
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col bg-white dark:bg-gray-800">
-        {/* Chat Messages */}
-        <div className="flex-1 overflow-hidden">
-          <ChatWindow messages={messages} />
-        </div>
+    <div className="h-screen bg-background">
+      <ResizablePanelGroup direction="horizontal" className="h-full">
+        <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
+          <div className="h-full bg-card border-r border-border">
+            <ChatSidebar
+              onNewChat={handleNewChat}
+              sessions={sessions}
+              currentSessionId={currentSessionId}
+              onSessionSelect={handleSessionSelect}
+            />
+          </div>
+        </ResizablePanel>
         
-        {/* Chat Input */}
-        <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-          <ChatInput onMessageSent={handleMessageSent} />
-        </div>
-      </div>
+        <ResizableHandle withHandle />
+        
+        <ResizablePanel defaultSize={75}>
+          <div className="h-full bg-card">
+            <ChatWindow
+              messages={currentMessages}
+              onSendMessage={handleSendMessage}
+              isLoading={isLoading}
+            />
+          </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </div>
   );
 };

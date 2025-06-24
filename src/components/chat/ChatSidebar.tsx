@@ -35,13 +35,13 @@ const ChatSidebar = ({ onNewChat, sessions, currentSessionId, onSessionSelect }:
   );
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col bg-card">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="p-4 border-b border-border">
         {/* Start New Chat Button */}
         <Button 
           onClick={onNewChat}
-          className="w-full flex items-center gap-2 justify-center mb-4 bg-orange-500 hover:bg-orange-600 text-white"
+          className="w-full flex items-center gap-2 justify-center mb-4 bg-primary hover:bg-primary/90 text-primary-foreground"
         >
           <Plus className="h-4 w-4" />
           Start New Chat
@@ -49,7 +49,7 @@ const ChatSidebar = ({ onNewChat, sessions, currentSessionId, onSessionSelect }:
         
         {/* Model Selection */}
         <Select defaultValue="azure">
-          <SelectTrigger className="w-full bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600">
+          <SelectTrigger className="w-full bg-muted border-border">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -61,14 +61,14 @@ const ChatSidebar = ({ onNewChat, sessions, currentSessionId, onSessionSelect }:
       </div>
 
       {/* Search */}
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="p-4 border-b border-border">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600"
+            className="pl-10 bg-muted border-border"
           />
         </div>
       </div>
@@ -76,7 +76,7 @@ const ChatSidebar = ({ onNewChat, sessions, currentSessionId, onSessionSelect }:
       {/* Chat History */}
       <ScrollArea className="flex-1">
         {filteredSessions.length === 0 ? (
-          <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+          <div className="p-4 text-center text-muted-foreground">
             <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
             <p className="text-sm">No chat history</p>
           </div>
@@ -88,8 +88,8 @@ const ChatSidebar = ({ onNewChat, sessions, currentSessionId, onSessionSelect }:
                 variant="ghost"
                 className={`w-full justify-start p-3 mb-1 h-auto ${
                   currentSessionId === session.id 
-                    ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-900 dark:text-orange-100' 
-                    : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                    ? 'bg-accent text-accent-foreground' 
+                    : 'hover:bg-muted'
                 }`}
                 onClick={() => onSessionSelect(session.id)}
               >
@@ -98,7 +98,7 @@ const ChatSidebar = ({ onNewChat, sessions, currentSessionId, onSessionSelect }:
                     <MessageSquare className="h-4 w-4 flex-shrink-0" />
                     <span className="text-sm font-medium truncate">{session.title}</span>
                   </div>
-                  <span className="text-xs text-gray-500 dark:text-gray-400 ml-6">
+                  <span className="text-xs text-muted-foreground ml-6">
                     {session.timestamp.toLocaleDateString()}
                   </span>
                 </div>
@@ -109,12 +109,12 @@ const ChatSidebar = ({ onNewChat, sessions, currentSessionId, onSessionSelect }:
       </ScrollArea>
 
       {/* User Profile */}
-      <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+      <div className="p-4 border-t border-border">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center">
-            <span className="text-white text-sm font-bold">A</span>
+          <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+            <span className="text-primary-foreground text-sm font-bold">J</span>
           </div>
-          <span className="text-sm font-medium text-gray-900 dark:text-white">admin</span>
+          <span className="text-sm font-medium text-foreground">Jeff</span>
         </div>
       </div>
     </div>
