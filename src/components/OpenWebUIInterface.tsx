@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Button } from '@/components/ui/button';
-import { MessageSquare, Cloud, Shield } from 'lucide-react';
+import { MessageSquare, Shield } from 'lucide-react';
 import ChatSidebar from '@/components/chat/ChatSidebar';
 import ChatWindow from '@/components/chat/ChatWindow';
 import { useAuth } from '@/contexts/AuthContext';
@@ -235,11 +235,13 @@ const OpenWebUIInterface = () => {
             Chat
           </Button>
           <Button
-            variant={interfaceMode === 'azure' ? 'default' : 'outline'}
+            variant={interfaceMode === 'azure' ? 'default' : 'outline'}             
             onClick={() => setInterfaceMode('azure')}
             className="flex items-center gap-2"
           >
-            <Cloud className="h-4 w-4" />
+            <div className="w-4 h-4 bg-blue-600 rounded-sm flex items-center justify-center">
+              <span className="text-white text-xs font-bold">A</span>
+            </div>
             Azure
           </Button>
           <Button
@@ -247,7 +249,9 @@ const OpenWebUIInterface = () => {
             onClick={() => setInterfaceMode('okta')}
             className="flex items-center gap-2"
           >
-            <Shield className="h-4 w-4" />
+            <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+              <span className="text-white text-xs font-bold">O</span>
+            </div>
             Okta
           </Button>
         </div>

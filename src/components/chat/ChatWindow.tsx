@@ -47,16 +47,6 @@ const ChatWindow = ({ messages, onSendMessage, isLoading }: ChatWindowProps) => 
 
   return (
     <div className="h-full bg-background flex flex-col relative">
-      {/* Header */}
-      <div className="flex items-center justify-center p-3 border-b border-border bg-card flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-            <span className="text-primary-foreground text-sm font-bold">AI</span>
-          </div>
-          <h1 className="text-xl font-semibold text-foreground">Chat Assistant</h1>
-        </div>
-      </div>
-
       {/* Chat Content */}
       <div className="flex-1 relative min-h-0">
         <ScrollArea className="h-full">

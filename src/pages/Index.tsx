@@ -55,7 +55,7 @@ const Index = () => {
         </div>
 
         {/* Main Tabs */}
-        <Tabs defaultValue="config" className="w-full">
+        <Tabs defaultValue="interface" className="w-full">
           <div className="px-6 bg-card border-b border-border">
             <TabsList className="grid w-full grid-cols-3 lg:w-fit lg:mx-auto bg-muted">
               <TabsTrigger value="config" className="flex items-center gap-2 data-[state=active]:bg-card">
