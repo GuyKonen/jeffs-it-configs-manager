@@ -30,14 +30,10 @@ const envPath = path.join(__dirname, '..', '.env');
 function initializeDatabase() {
   // Create tables
   db.serialize(() => {
-    // Drop and recreate users table with all required columns
     console.log('SERVER: Initializing database schema...');
     
-    db.run(`DROP TABLE IF EXISTS users_backup`);
-    db.run(`CREATE TABLE users_backup AS SELECT * FROM users WHERE 1=0`);
-    
     // Create the users table with all required columns
-    db.run(`CREATE TABLE IF NOT EXISTS users_new (
+    db.run(`CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
@@ -48,32 +44,10 @@ function initializeDatabase() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`, (err) => {
       if (err) {
-        console.error('SERVER: Error creating users_new table:', err);
+        console.error('SERVER: Error creating users table:', err);
       } else {
-        console.log('SERVER: Created users_new table with TOTP columns');
-        
-        // Check if old users table exists and migrate data
-        db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='users'", (err, row) => {
-          if (row) {
-            console.log('SERVER: Migrating existing users...');
-            db.run(`INSERT INTO users_new (id, username, password_hash, role, is_active, created_at)
-                     SELECT id, username, password_hash, role, is_active, created_at FROM users`, (err) => {
-              if (err) {
-                console.error('SERVER: Error migrating users:', err);
-              } else {
-                console.log('SERVER: Successfully migrated existing users');
-                // Drop old table and rename new one
-                db.run(`DROP TABLE users`);
-                db.run(`ALTER TABLE users_new RENAME TO users`);
-                seedDefaultUsers();
-              }
-            });
-          } else {
-            // No existing users table, just rename the new one
-            db.run(`ALTER TABLE users_new RENAME TO users`);
-            seedDefaultUsers();
-          }
-        });
+        console.log('SERVER: Users table created/verified with TOTP columns');
+        seedDefaultUsers();
       }
     });
 
