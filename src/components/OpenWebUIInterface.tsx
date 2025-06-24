@@ -4,6 +4,7 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/componen
 import ChatSidebar from '@/components/chat/ChatSidebar';
 import ChatWindow from '@/components/chat/ChatWindow';
 import { useAuth } from '@/contexts/AuthContext';
+import { database } from '@/utils/database';
 
 interface Message {
   id: string;
@@ -26,7 +27,7 @@ const OpenWebUIInterface = () => {
   const [currentMessages, setCurrentMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Load chat sessions from localStorage
+  // Load chat sessions from database
   useEffect(() => {
     loadChatSessions();
   }, [user]);
@@ -37,31 +38,24 @@ const OpenWebUIInterface = () => {
     try {
       console.log('Loading chat sessions for user:', user.id);
       
-      const storedSessions = localStorage.getItem(`chat_sessions_${user.id}`);
-      if (storedSessions) {
-        const parsedSessions = JSON.parse(storedSessions).map((session: any) => ({
-          ...session,
-          timestamp: new Date(session.timestamp),
-          messages: session.messages.map((msg: any) => ({
-            ...msg,
-            timestamp: new Date(msg.timestamp)
-          }))
+      const dbSessions = database.getChatSessions(user.id);
+      const sessionsWithMessages = dbSessions.map(session => {
+        const messages = database.getMessages(session.id).map(msg => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp)
         }));
-        setSessions(parsedSessions);
-      }
+        
+        return {
+          id: session.id,
+          title: session.title,
+          messages,
+          timestamp: new Date(session.timestamp)
+        };
+      });
+      
+      setSessions(sessionsWithMessages);
     } catch (error) {
       console.error('Error loading chat sessions:', error);
-    }
-  };
-
-  const saveChatSessions = (updatedSessions: ChatSession[]) => {
-    if (!user) return;
-    
-    try {
-      localStorage.setItem(`chat_sessions_${user.id}`, JSON.stringify(updatedSessions));
-      setSessions(updatedSessions);
-    } catch (error) {
-      console.error('Error saving chat sessions:', error);
     }
   };
 
@@ -88,19 +82,19 @@ const OpenWebUIInterface = () => {
 
     try {
       let sessionId = currentSessionId;
-      let updatedSessions = [...sessions];
 
       // Create new session if none exists
       if (!sessionId) {
         console.log('Creating new session');
         sessionId = `session_${Date.now()}`;
-        const newSession: ChatSession = {
+        const newSession = {
           id: sessionId,
+          user_id: user.id,
           title: content.substring(0, 50) + (content.length > 50 ? '...' : ''),
-          messages: [],
-          timestamp: new Date()
+          timestamp: new Date().toISOString()
         };
-        updatedSessions.unshift(newSession);
+        
+        database.createChatSession(newSession);
         setCurrentSessionId(sessionId);
         console.log('Created new session:', sessionId);
       }
@@ -116,15 +110,14 @@ const OpenWebUIInterface = () => {
       const newMessages = [...currentMessages, userMessage];
       setCurrentMessages(newMessages);
 
-      // Update session with user message
-      const sessionIndex = updatedSessions.findIndex(s => s.id === sessionId);
-      if (sessionIndex !== -1) {
-        updatedSessions[sessionIndex] = {
-          ...updatedSessions[sessionIndex],
-          messages: newMessages
-        };
-        saveChatSessions(updatedSessions);
-      }
+      // Save user message to database
+      database.createMessage({
+        id: userMessage.id,
+        session_id: sessionId,
+        type: userMessage.type,
+        content: userMessage.content,
+        timestamp: userMessage.timestamp.toISOString()
+      });
 
       // Send to AI API (localhost:8000)
       try {
@@ -156,15 +149,14 @@ const OpenWebUIInterface = () => {
         const finalMessages = [...newMessages, aiMessage];
         setCurrentMessages(finalMessages);
 
-        // Update session with AI message
-        const finalSessionIndex = updatedSessions.findIndex(s => s.id === sessionId);
-        if (finalSessionIndex !== -1) {
-          updatedSessions[finalSessionIndex] = {
-            ...updatedSessions[finalSessionIndex],
-            messages: finalMessages
-          };
-          saveChatSessions(updatedSessions);
-        }
+        // Save AI message to database
+        database.createMessage({
+          id: aiMessage.id,
+          session_id: sessionId,
+          type: aiMessage.type,
+          content: aiMessage.content,
+          timestamp: aiMessage.timestamp.toISOString()
+        });
 
       } catch (apiError) {
         console.error('API Error:', apiError);
@@ -180,16 +172,18 @@ const OpenWebUIInterface = () => {
         const finalMessages = [...newMessages, errorMessage];
         setCurrentMessages(finalMessages);
 
-        // Update session with error message
-        const finalSessionIndex = updatedSessions.findIndex(s => s.id === sessionId);
-        if (finalSessionIndex !== -1) {
-          updatedSessions[finalSessionIndex] = {
-            ...updatedSessions[finalSessionIndex],
-            messages: finalMessages
-          };
-          saveChatSessions(updatedSessions);
-        }
+        // Save error message to database
+        database.createMessage({
+          id: errorMessage.id,
+          session_id: sessionId,
+          type: errorMessage.type,
+          content: errorMessage.content,
+          timestamp: errorMessage.timestamp.toISOString()
+        });
       }
+
+      // Reload sessions to update the sidebar
+      loadChatSessions();
 
     } catch (error) {
       console.error('Error in handleSendMessage:', error);

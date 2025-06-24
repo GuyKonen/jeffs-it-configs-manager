@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   Card,
@@ -39,14 +40,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { Settings, Trash2, User, UserPlus, Pencil } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
-
-interface UserData {
-  id: string;
-  username: string;
-  role: string;
-  created_at: string;
-  is_active: boolean;
-}
+import { database, User as UserData } from '@/utils/database';
 
 const UserManagement = () => {
   const [users, setUsers] = useState<UserData[]>([]);
@@ -67,13 +61,8 @@ const UserManagement = () => {
   const fetchUsers = () => {
     setIsLoading(true);
     try {
-      const storedUsers = localStorage.getItem('local_users');
-      const defaultUsers = [
-        { id: 'user1', username: 'admin', role: 'admin', created_at: new Date().toISOString(), is_active: true },
-        { id: 'user2', username: 'user', role: 'user', created_at: new Date().toISOString(), is_active: true }
-      ];
-      
-      setUsers(storedUsers ? JSON.parse(storedUsers) : defaultUsers);
+      const allUsers = database.getAllUsers();
+      setUsers(allUsers);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -92,14 +81,7 @@ const UserManagement = () => {
   const updateUser = (userId: string, userData: { password?: string; role?: string }) => {
     try {
       setIsLoading(true);
-      const storedUsers = localStorage.getItem('local_users');
-      const currentUsers = storedUsers ? JSON.parse(storedUsers) : [];
-      
-      const updatedUsers = currentUsers.map((u: UserData) => 
-        u.id === userId ? { ...u, ...userData } : u
-      );
-      
-      localStorage.setItem('local_users', JSON.stringify(updatedUsers));
+      database.updateUser(userId, userData);
       
       toast({
         title: "Success",
@@ -122,11 +104,7 @@ const UserManagement = () => {
   const deleteUser = (userId: string) => {
     try {
       setIsLoading(true);
-      const storedUsers = localStorage.getItem('local_users');
-      const currentUsers = storedUsers ? JSON.parse(storedUsers) : [];
-      
-      const updatedUsers = currentUsers.filter((u: UserData) => u.id !== userId);
-      localStorage.setItem('local_users', JSON.stringify(updatedUsers));
+      database.deleteUser(userId);
 
       toast({
         title: "Success",
@@ -150,19 +128,12 @@ const UserManagement = () => {
     try {
       setIsLoading(true);
       
-      const storedUsers = localStorage.getItem('local_users');
-      const currentUsers = storedUsers ? JSON.parse(storedUsers) : [];
-      
-      const newUserData = {
-        id: `user_${Date.now()}`,
+      database.createUser({
         username: userData.username,
+        password: userData.password,
         role: userData.role,
-        created_at: new Date().toISOString(),
         is_active: true
-      };
-      
-      currentUsers.push(newUserData);
-      localStorage.setItem('local_users', JSON.stringify(currentUsers));
+      });
 
       toast({
         title: "Success",
@@ -189,9 +160,9 @@ const UserManagement = () => {
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Settings className="h-5 w-5 mr-2" />
-            User Management (Local)
+            User Management (SQLite Database)
           </CardTitle>
-          <CardDescription>Manage users locally with localStorage</CardDescription>
+          <CardDescription>Manage users with local SQLite database</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -251,7 +222,7 @@ const UserManagement = () => {
           <DialogHeader>
             <DialogTitle>Create New User</DialogTitle>
             <DialogDescription>
-              Add a new user locally.
+              Add a new user to the database.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
