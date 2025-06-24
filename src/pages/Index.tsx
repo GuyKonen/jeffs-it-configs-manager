@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Settings, Users, TestTube } from 'lucide-react';
+import { Settings, Users } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import UserProfile from '@/components/UserProfile';
@@ -23,7 +23,7 @@ const Index = () => {
   // Show loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'rgb(247, 244, 237)' }}>
         <div className="text-lg">Loading...</div>
       </div>
     );
@@ -35,7 +35,7 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen" style={{ backgroundColor: 'rgb(247, 244, 237)' }}>
       <div className="w-full">
         {/* Header */}
         <div className="text-center space-y-2 px-6 py-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
@@ -68,7 +68,7 @@ const Index = () => {
                 </TabsTrigger>
               )}
               <TabsTrigger value="azure" className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-800">
-                <TestTube className="h-4 w-4" />
+                <img src="/azure-icon.png" alt="Azure" className="h-4 w-4" />
                 Azure
               </TabsTrigger>
             </TabsList>

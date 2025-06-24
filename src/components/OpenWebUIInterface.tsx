@@ -181,14 +181,14 @@ const OpenWebUIInterface = () => {
 
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+      <div className="h-screen flex items-center justify-center" style={{ backgroundColor: 'rgb(247, 244, 237)' }}>
         <div className="text-lg">Loading chat history...</div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen flex bg-gray-50 dark:bg-gray-900">
+    <div className="h-[calc(100vh-140px)] flex" style={{ backgroundColor: 'rgb(247, 244, 237)' }}>
       {/* Left Sidebar */}
       <div className="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
         <ChatSidebar 

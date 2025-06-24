@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Menu, Search, MessageSquare, Settings } from 'lucide-react';
+import { Search, MessageSquare, Plus } from 'lucide-react';
 
 interface Message {
   id: string;
@@ -38,19 +38,14 @@ const ChatSidebar = ({ onNewChat, sessions, currentSessionId, onSessionSelect }:
     <div className="h-full flex flex-col">
       {/* Header */}
       <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center gap-3 mb-4">
-          <Menu className="h-5 w-5 text-gray-600" />
-          <Button 
-            variant="ghost" 
-            className="flex items-center gap-2 p-0 hover:bg-transparent"
-            onClick={onNewChat}
-          >
-            <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
-              <span className="text-white text-xs font-bold">Jeff</span>
-            </div>
-            <span className="font-semibold text-gray-900 dark:text-white">New Chat</span>
-          </Button>
-        </div>
+        {/* Start New Chat Button */}
+        <Button 
+          onClick={onNewChat}
+          className="w-full flex items-center gap-2 justify-center mb-4 bg-orange-500 hover:bg-orange-600 text-white"
+        >
+          <Plus className="h-4 w-4" />
+          Start New Chat
+        </Button>
         
         {/* Model Selection */}
         <Select defaultValue="azure">
@@ -75,24 +70,6 @@ const ChatSidebar = ({ onNewChat, sessions, currentSessionId, onSessionSelect }:
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600"
           />
-        </div>
-      </div>
-
-      {/* Navigation */}
-      <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-3 p-2 text-sm text-gray-600 dark:text-gray-400">
-            <Search className="h-4 w-4" />
-            <span>Search</span>
-          </div>
-          <div className="flex items-center gap-3 p-2 text-sm text-gray-600 dark:text-gray-400">
-            <MessageSquare className="h-4 w-4" />
-            <span>Notes</span>
-          </div>
-          <div className="flex items-center gap-3 p-2 text-sm text-gray-600 dark:text-gray-400">
-            <Settings className="h-4 w-4" />
-            <span>Workspace</span>
-          </div>
         </div>
       </div>
 
