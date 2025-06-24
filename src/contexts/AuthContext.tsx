@@ -1,22 +1,14 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
 
-interface CustomUser {
+interface LocalUser {
   id: string;
-  email?: string;
-  username?: string;
-  display_name?: string;
-  microsoft_user_id?: string;
-  role?: string;
-  user_metadata?: any;
-  auth_type: 'username';
+  username: string;
+  role: string;
 }
 
 interface AuthContextType {
-  user: CustomUser | null;
-  session: Session | null;
+  user: LocalUser | null;
   loading: boolean;
   signInWithUsername: (username: string, password: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
@@ -32,65 +24,57 @@ export const useAuth = () => {
   return context;
 };
 
+// Simple local user database
+const LOCAL_USERS = [
+  { id: 'user1', username: 'admin', password: 'admin', role: 'admin' },
+  { id: 'user2', username: 'user', password: 'user', role: 'user' },
+];
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<CustomUser | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<LocalUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for username auth
-    const usernameAuth = localStorage.getItem('username_auth');
-    if (usernameAuth) {
-      const userData = JSON.parse(usernameAuth);
-      setUser({
-        id: userData.id,
-        username: userData.username,
-        role: userData.role,
-        auth_type: 'username'
-      });
-      setLoading(false);
-      return;
+    // Check for local auth
+    const localAuth = localStorage.getItem('local_auth');
+    if (localAuth) {
+      const userData = JSON.parse(localAuth);
+      setUser(userData);
     }
-
     setLoading(false);
   }, []);
 
   const signInWithUsername = async (username: string, password: string) => {
     try {
-      const response = await supabase.functions.invoke('auth-username', {
-        body: { username, password, action: 'login' }
-      });
-
-      if (response.error || !response.data?.success) {
-        return { error: response.data?.error || 'Authentication failed' };
+      const foundUser = LOCAL_USERS.find(u => u.username === username && u.password === password);
+      
+      if (!foundUser) {
+        return { error: 'Invalid username or password' };
       }
 
-      const userData = response.data.user;
-      localStorage.setItem('username_auth', JSON.stringify(userData));
-      
-      setUser({
-        id: userData.id,
-        username: userData.username,
-        role: userData.role,
-        auth_type: 'username'
-      });
+      const userData = {
+        id: foundUser.id,
+        username: foundUser.username,
+        role: foundUser.role
+      };
+
+      localStorage.setItem('local_auth', JSON.stringify(userData));
+      setUser(userData);
 
       return {};
     } catch (error) {
-      console.error('Username auth error:', error);
+      console.error('Local auth error:', error);
       return { error: 'Authentication failed' };
     }
   };
 
   const signOut = async () => {
-    localStorage.removeItem('username_auth');
+    localStorage.removeItem('local_auth');
     setUser(null);
-    setSession(null);
   };
 
   const value = {
     user,
-    session,
     loading,
     signInWithUsername,
     signOut

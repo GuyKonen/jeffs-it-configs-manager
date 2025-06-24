@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import ChatSidebar from '@/components/chat/ChatSidebar';
 import ChatWindow from '@/components/chat/ChatWindow';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface Message {
@@ -27,71 +26,42 @@ const OpenWebUIInterface = () => {
   const [currentMessages, setCurrentMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Load chat sessions from database
+  // Load chat sessions from localStorage
   useEffect(() => {
     loadChatSessions();
   }, [user]);
 
-  const loadChatSessions = async () => {
+  const loadChatSessions = () => {
     if (!user) return;
 
     try {
       console.log('Loading chat sessions for user:', user.id);
       
-      const { data: sessionsData, error: sessionsError } = await supabase
-        .from('chat_sessions')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (sessionsError) {
-        console.error('Error loading sessions:', sessionsError);
-        return;
-      }
-
-      console.log('Loaded sessions:', sessionsData);
-
-      if (sessionsData && sessionsData.length > 0) {
-        // Process sessions one by one to avoid complex type inference
-        const formattedSessions: ChatSession[] = [];
-        
-        for (const session of sessionsData) {
-          const { data: messagesData, error: messagesError } = await supabase
-            .from('chat_messages')
-            .select('*')
-            .eq('session_id', session.id)
-            .order('created_at', { ascending: true });
-
-          if (messagesError) {
-            console.error('Error loading messages for session:', session.id, messagesError);
-            formattedSessions.push({
-              id: session.id,
-              title: session.title || 'New Chat',
-              messages: [],
-              timestamp: new Date(session.created_at)
-            });
-            continue;
-          }
-
-          const formattedMessages: Message[] = messagesData?.map(msg => ({
-            id: msg.id,
-            type: msg.type as 'user' | 'assistant',
-            content: msg.content,
-            timestamp: new Date(msg.created_at)
-          })) || [];
-
-          formattedSessions.push({
-            id: session.id,
-            title: session.title || 'New Chat',
-            messages: formattedMessages,
-            timestamp: new Date(session.created_at)
-          });
-        }
-
-        setSessions(formattedSessions);
+      const storedSessions = localStorage.getItem(`chat_sessions_${user.id}`);
+      if (storedSessions) {
+        const parsedSessions = JSON.parse(storedSessions).map((session: any) => ({
+          ...session,
+          timestamp: new Date(session.timestamp),
+          messages: session.messages.map((msg: any) => ({
+            ...msg,
+            timestamp: new Date(msg.timestamp)
+          }))
+        }));
+        setSessions(parsedSessions);
       }
     } catch (error) {
-      console.error('Error in loadChatSessions:', error);
+      console.error('Error loading chat sessions:', error);
+    }
+  };
+
+  const saveChatSessions = (updatedSessions: ChatSession[]) => {
+    if (!user) return;
+    
+    try {
+      localStorage.setItem(`chat_sessions_${user.id}`, JSON.stringify(updatedSessions));
+      setSessions(updatedSessions);
+    } catch (error) {
+      console.error('Error saving chat sessions:', error);
     }
   };
 
@@ -118,51 +88,42 @@ const OpenWebUIInterface = () => {
 
     try {
       let sessionId = currentSessionId;
+      let updatedSessions = [...sessions];
 
       // Create new session if none exists
       if (!sessionId) {
         console.log('Creating new session');
-        const { data: newSession, error: sessionError } = await supabase
-          .from('chat_sessions')
-          .insert({
-            user_id: user.id,
-            title: content.substring(0, 50) + (content.length > 50 ? '...' : '')
-          })
-          .select()
-          .single();
-
-        if (sessionError) {
-          console.error('Error creating session:', sessionError);
-          setIsLoading(false);
-          return;
-        }
-
-        sessionId = newSession.id;
+        sessionId = `session_${Date.now()}`;
+        const newSession: ChatSession = {
+          id: sessionId,
+          title: content.substring(0, 50) + (content.length > 50 ? '...' : ''),
+          messages: [],
+          timestamp: new Date()
+        };
+        updatedSessions.unshift(newSession);
         setCurrentSessionId(sessionId);
         console.log('Created new session:', sessionId);
       }
 
       // Add user message
       const userMessage: Message = {
-        id: Date.now().toString(),
+        id: `msg_${Date.now()}`,
         type: 'user',
         content,
         timestamp: new Date()
       };
 
-      setCurrentMessages(prev => [...prev, userMessage]);
+      const newMessages = [...currentMessages, userMessage];
+      setCurrentMessages(newMessages);
 
-      // Save user message to database
-      const { error: userMessageError } = await supabase
-        .from('chat_messages')
-        .insert({
-          session_id: sessionId,
-          type: 'user',
-          content: content
-        });
-
-      if (userMessageError) {
-        console.error('Error saving user message:', userMessageError);
+      // Update session with user message
+      const sessionIndex = updatedSessions.findIndex(s => s.id === sessionId);
+      if (sessionIndex !== -1) {
+        updatedSessions[sessionIndex] = {
+          ...updatedSessions[sessionIndex],
+          messages: newMessages
+        };
+        saveChatSessions(updatedSessions);
       }
 
       // Send to AI API (localhost:8000)
@@ -186,25 +147,23 @@ const OpenWebUIInterface = () => {
         
         // Add AI response
         const aiMessage: Message = {
-          id: (Date.now() + 1).toString(),
+          id: `msg_${Date.now() + 1}`,
           type: 'assistant',
           content: data.response || 'Sorry, I encountered an error processing your request.',
           timestamp: new Date()
         };
 
-        setCurrentMessages(prev => [...prev, aiMessage]);
+        const finalMessages = [...newMessages, aiMessage];
+        setCurrentMessages(finalMessages);
 
-        // Save AI message to database
-        const { error: aiMessageError } = await supabase
-          .from('chat_messages')
-          .insert({
-            session_id: sessionId,
-            type: 'assistant',
-            content: aiMessage.content
-          });
-
-        if (aiMessageError) {
-          console.error('Error saving AI message:', aiMessageError);
+        // Update session with AI message
+        const finalSessionIndex = updatedSessions.findIndex(s => s.id === sessionId);
+        if (finalSessionIndex !== -1) {
+          updatedSessions[finalSessionIndex] = {
+            ...updatedSessions[finalSessionIndex],
+            messages: finalMessages
+          };
+          saveChatSessions(updatedSessions);
         }
 
       } catch (apiError) {
@@ -212,17 +171,25 @@ const OpenWebUIInterface = () => {
         
         // Add error message
         const errorMessage: Message = {
-          id: (Date.now() + 1).toString(),
+          id: `msg_${Date.now() + 1}`,
           type: 'assistant',
           content: 'Sorry, I\'m having trouble connecting to the AI service. Please make sure the server is running on localhost:8000.',
           timestamp: new Date()
         };
 
-        setCurrentMessages(prev => [...prev, errorMessage]);
-      }
+        const finalMessages = [...newMessages, errorMessage];
+        setCurrentMessages(finalMessages);
 
-      // Reload sessions to update the sidebar
-      await loadChatSessions();
+        // Update session with error message
+        const finalSessionIndex = updatedSessions.findIndex(s => s.id === sessionId);
+        if (finalSessionIndex !== -1) {
+          updatedSessions[finalSessionIndex] = {
+            ...updatedSessions[finalSessionIndex],
+            messages: finalMessages
+          };
+          saveChatSessions(updatedSessions);
+        }
+      }
 
     } catch (error) {
       console.error('Error in handleSendMessage:', error);

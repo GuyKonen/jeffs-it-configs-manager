@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   Card,
@@ -40,12 +39,10 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { Settings, Trash2, User, UserPlus, Pencil } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 
 interface UserData {
   id: string;
-  username: string | null;
-  email: string | null;
+  username: string;
   role: string;
   created_at: string;
   is_active: boolean;
@@ -61,30 +58,26 @@ const UserManagement = () => {
   const [editPassword, setEditPassword] = useState('');
   const [newUser, setNewUser] = useState({
     username: '',
-    email: '',
     password: '',
-    role: 'user',
-    authType: 'username'
+    role: 'user'
   });
   const { toast } = useToast();
   const { user } = useAuth();
 
-  const fetchUsers = async () => {
+  const fetchUsers = () => {
     setIsLoading(true);
     try {
-      const response = await supabase.functions.invoke('user-management', {
-        body: { action: 'list', currentUser: user?.username || user?.email }
-      });
-
-      if (response.error || !response.data?.users) {
-        throw new Error(response.data?.error || 'Failed to fetch users');
-      }
-
-      setUsers(response.data.users);
+      const storedUsers = localStorage.getItem('local_users');
+      const defaultUsers = [
+        { id: 'user1', username: 'admin', role: 'admin', created_at: new Date().toISOString(), is_active: true },
+        { id: 'user2', username: 'user', role: 'user', created_at: new Date().toISOString(), is_active: true }
+      ];
+      
+      setUsers(storedUsers ? JSON.parse(storedUsers) : defaultUsers);
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message,
+        description: "Failed to fetch users",
         variant: "destructive",
       });
     } finally {
@@ -96,22 +89,18 @@ const UserManagement = () => {
     fetchUsers();
   }, []);
 
-  const updateUser = async (userId: string, userData: { password?: string; role?: string }) => {
+  const updateUser = (userId: string, userData: { password?: string; role?: string }) => {
     try {
       setIsLoading(true);
-      const response = await supabase.functions.invoke('user-management', {
-        body: {
-          action: 'update',
-          userId,
-          ...userData,
-          currentUser: user?.username || user?.email
-        }
-      });
-
-      if (response.error || !response.data?.success) {
-        throw new Error(response.data?.error || 'Failed to update user');
-      }
-
+      const storedUsers = localStorage.getItem('local_users');
+      const currentUsers = storedUsers ? JSON.parse(storedUsers) : [];
+      
+      const updatedUsers = currentUsers.map((u: UserData) => 
+        u.id === userId ? { ...u, ...userData } : u
+      );
+      
+      localStorage.setItem('local_users', JSON.stringify(updatedUsers));
+      
       toast({
         title: "Success",
         description: "User updated successfully",
@@ -122,7 +111,7 @@ const UserManagement = () => {
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message,
+        description: "Failed to update user",
         variant: "destructive",
       });
     } finally {
@@ -130,20 +119,14 @@ const UserManagement = () => {
     }
   };
 
-  const deleteUser = async (userId: string) => {
+  const deleteUser = (userId: string) => {
     try {
       setIsLoading(true);
-      const response = await supabase.functions.invoke('user-management', {
-        body: {
-          action: 'delete',
-          userId,
-          currentUser: user?.username || user?.email
-        }
-      });
-
-      if (response.error || !response.data?.success) {
-        throw new Error(response.data?.error || 'Failed to delete user');
-      }
+      const storedUsers = localStorage.getItem('local_users');
+      const currentUsers = storedUsers ? JSON.parse(storedUsers) : [];
+      
+      const updatedUsers = currentUsers.filter((u: UserData) => u.id !== userId);
+      localStorage.setItem('local_users', JSON.stringify(updatedUsers));
 
       toast({
         title: "Success",
@@ -155,7 +138,7 @@ const UserManagement = () => {
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message,
+        description: "Failed to delete user",
         variant: "destructive",
       });
     } finally {
@@ -163,49 +146,36 @@ const UserManagement = () => {
     }
   };
 
-  const createUser = async (userData: { username?: string; email?: string; password: string; role: string; authType: string }) => {
+  const createUser = (userData: { username: string; password: string; role: string }) => {
     try {
       setIsLoading(true);
       
-      let response;
-      if (userData.authType === 'entra') {
-        response = await supabase.functions.invoke('entra-management', {
-          body: {
-            action: 'create',
-            email: userData.email,
-            password: userData.password,
-            role: userData.role,
-            currentUser: user?.username || user?.email
-          }
-        });
-      } else {
-        response = await supabase.functions.invoke('user-management', {
-          body: {
-            action: 'create',
-            username: userData.username,
-            password: userData.password,
-            role: userData.role,
-            currentUser: user?.username || user?.email
-          }
-        });
-      }
-
-      if (response.error || !response.data?.success) {
-        throw new Error(response.data?.error || 'Failed to create user');
-      }
+      const storedUsers = localStorage.getItem('local_users');
+      const currentUsers = storedUsers ? JSON.parse(storedUsers) : [];
+      
+      const newUserData = {
+        id: `user_${Date.now()}`,
+        username: userData.username,
+        role: userData.role,
+        created_at: new Date().toISOString(),
+        is_active: true
+      };
+      
+      currentUsers.push(newUserData);
+      localStorage.setItem('local_users', JSON.stringify(currentUsers));
 
       toast({
         title: "Success",
-        description: `${userData.authType === 'entra' ? 'Entra ID user' : 'User'} created successfully`,
+        description: "User created successfully",
       });
 
       fetchUsers();
-      setNewUser({ username: '', email: '', password: '', role: 'user', authType: 'username' });
+      setNewUser({ username: '', password: '', role: 'user' });
       setIsCreateDialogOpen(false);
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message,
+        description: "Failed to create user",
         variant: "destructive",
       });
     } finally {
@@ -219,9 +189,9 @@ const UserManagement = () => {
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Settings className="h-5 w-5 mr-2" />
-            User Management
+            User Management (Local)
           </CardTitle>
-          <CardDescription>Manage users and their roles</CardDescription>
+          <CardDescription>Manage users locally with localStorage</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -237,7 +207,7 @@ const UserManagement = () => {
             <TableBody>
               {users.map((user) => (
                 <TableRow key={user.id}>
-                  <TableCell>{user.username || user.email}</TableCell>
+                  <TableCell>{user.username}</TableCell>
                   <TableCell>{user.role}</TableCell>
                   <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
                   <TableCell>{user.is_active ? 'Active' : 'Inactive'}</TableCell>
@@ -281,45 +251,19 @@ const UserManagement = () => {
           <DialogHeader>
             <DialogTitle>Create New User</DialogTitle>
             <DialogDescription>
-              Add a new user to the system with username or Microsoft Entra ID authentication.
+              Add a new user locally.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="auth-type">Authentication Type</Label>
-              <Select value={newUser.authType} onValueChange={(value) => setNewUser({ ...newUser, authType: value })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select authentication type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="username">Username</SelectItem>
-                  <SelectItem value="entra">Microsoft Entra ID</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label htmlFor="username">Username</Label>
+              <Input
+                id="username"
+                value={newUser.username}
+                onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
+                placeholder="Enter username"
+              />
             </div>
-            
-            {newUser.authType === 'username' ? (
-              <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
-                <Input
-                  id="username"
-                  value={newUser.username}
-                  onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
-                  placeholder="Enter username"
-                />
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={newUser.email}
-                  onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                  placeholder="Enter Microsoft email"
-                />
-              </div>
-            )}
             
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
