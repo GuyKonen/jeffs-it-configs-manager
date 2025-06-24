@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   Card,
@@ -37,8 +36,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { useToast } from "@/hooks/use-toast"
-import { Settings, Trash2, User, UserPlus, Pencil } from "lucide-react";
+import { Settings, Trash2, User, UserPlus, Pencil, Shield, ShieldCheck } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
 import { database, User as UserData } from '@/utils/database';
 
@@ -47,9 +47,13 @@ const UserManagement = () => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isTotpSetupOpen, setIsTotpSetupOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   const [editPassword, setEditPassword] = useState('');
+  const [totpSecret, setTotpSecret] = useState('');
+  const [qrCodeUrl, setQrCodeUrl] = useState('');
+  const [totpToken, setTotpToken] = useState('');
   const [newUser, setNewUser] = useState({
     username: '',
     password: '',
@@ -77,6 +81,56 @@ const UserManagement = () => {
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  const setupTOTP = async (userId: string) => {
+    try {
+      const { secret, qr_code_url } = await database.setupTOTP(userId);
+      setTotpSecret(secret);
+      setQrCodeUrl(qr_code_url);
+      setIsTotpSetupOpen(true);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to setup TOTP",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const enableTOTP = async (userId: string, token: string) => {
+    try {
+      await database.enableTOTP(userId, token);
+      toast({
+        title: "Success",
+        description: "TOTP enabled successfully",
+      });
+      setIsTotpSetupOpen(false);
+      await fetchUsers();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Invalid TOTP token",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const disableTOTP = async (userId: string) => {
+    try {
+      await database.disableTOTP(userId);
+      toast({
+        title: "Success",
+        description: "TOTP disabled successfully",
+      });
+      await fetchUsers();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to disable TOTP",
+        variant: "destructive",
+      });
+    }
+  };
 
   const updateUser = async (userId: string, userData: { password?: string; role?: string }) => {
     try {
@@ -128,7 +182,7 @@ const UserManagement = () => {
     try {
       setIsLoading(true);
       
-      await database.createUser({
+      const newUserData = await database.createUser({
         username: userData.username,
         password: userData.password,
         role: userData.role,
@@ -136,10 +190,12 @@ const UserManagement = () => {
       });
 
       toast({
-        title: "Success",
-        description: "User created successfully",
+        title: "User Created",
+        description: "User created successfully. Now setting up TOTP...",
       });
 
+      // Automatically setup TOTP for new user
+      await setupTOTP(newUserData.id);
       await fetchUsers();
       setNewUser({ username: '', password: '', role: 'user' });
       setIsCreateDialogOpen(false);
@@ -162,7 +218,7 @@ const UserManagement = () => {
             <Settings className="h-5 w-5 mr-2" />
             User Management (SQLite Database)
           </CardTitle>
-          <CardDescription>Manage users with local SQLite database</CardDescription>
+          <CardDescription>Manage users with local SQLite database - TOTP required for all users</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -170,6 +226,7 @@ const UserManagement = () => {
               <TableRow>
                 <TableHead>Username</TableHead>
                 <TableHead>Role</TableHead>
+                <TableHead>TOTP Status</TableHead>
                 <TableHead>Created At</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -180,23 +237,46 @@ const UserManagement = () => {
                 <TableRow key={user.id}>
                   <TableCell>{user.username}</TableCell>
                   <TableCell>{user.role}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      {user.totp_enabled ? (
+                        <ShieldCheck className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <Shield className="h-4 w-4 text-red-500" />
+                      )}
+                      {user.totp_enabled ? 'Enabled' : 'Disabled'}
+                    </div>
+                  </TableCell>
                   <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
                   <TableCell>{user.is_active ? 'Active' : 'Inactive'}</TableCell>
                   <TableCell className="text-right font-medium">
-                    <Button variant="ghost" size="sm" onClick={() => {
-                      setSelectedUser(user);
-                      setIsEditDialogOpen(true);
-                    }}>
-                      <Pencil className="h-4 w-4 mr-2" />
-                      Edit
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => {
-                      setSelectedUser(user);
-                      setIsDeleteDialogOpen(true);
-                    }}>
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete
-                    </Button>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => {
+                        setSelectedUser(user);
+                        setIsEditDialogOpen(true);
+                      }}>
+                        <Pencil className="h-4 w-4 mr-2" />
+                        Edit
+                      </Button>
+                      {!user.totp_enabled ? (
+                        <Button variant="ghost" size="sm" onClick={() => setupTOTP(user.id)}>
+                          <Shield className="h-4 w-4 mr-2" />
+                          Setup TOTP
+                        </Button>
+                      ) : (
+                        <Button variant="ghost" size="sm" onClick={() => disableTOTP(user.id)}>
+                          <ShieldCheck className="h-4 w-4 mr-2" />
+                          Disable TOTP
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="sm" onClick={() => {
+                        setSelectedUser(user);
+                        setIsDeleteDialogOpen(true);
+                      }}>
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -337,6 +417,53 @@ const UserManagement = () => {
             </Button>
             <Button variant="destructive" onClick={() => deleteUser(selectedUser!.id)} disabled={isLoading}>
               {isLoading ? "Deleting..." : "Delete User"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* TOTP Setup Dialog */}
+      <Dialog open={isTotpSetupOpen} onOpenChange={setIsTotpSetupOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Setup Two-Factor Authentication</DialogTitle>
+            <DialogDescription>
+              Scan the QR code with your authenticator app and enter the 6-digit code to enable TOTP.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {qrCodeUrl && (
+              <div className="text-center">
+                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrCodeUrl)}`} alt="TOTP QR Code" className="mx-auto" />
+                <p className="text-sm text-muted-foreground mt-2">Secret: {totpSecret}</p>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>Enter 6-digit code from your authenticator app</Label>
+              <div className="flex justify-center">
+                <InputOTP
+                  maxLength={6}
+                  value={totpToken}
+                  onChange={(value) => setTotpToken(value)}
+                >
+                  <InputOTPGroup>
+                    <InputOTPSlot index={0} />
+                    <InputOTPSlot index={1} />
+                    <InputOTPSlot index={2} />
+                    <InputOTPSlot index={3} />
+                    <InputOTPSlot index={4} />
+                    <InputOTPSlot index={5} />
+                  </InputOTPGroup>
+                </InputOTP>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsTotpSetupOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => enableTOTP(selectedUser?.id || '', totpToken)} disabled={totpToken.length !== 6}>
+              Enable TOTP
             </Button>
           </DialogFooter>
         </DialogContent>

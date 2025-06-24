@@ -119,16 +119,16 @@ const OpenWebUIInterface = () => {
         timestamp: userMessage.timestamp.toISOString()
       });
 
-      // Send to localhost:8000/chat (updated endpoint)
+      // Send to localhost:8000/chat
       try {
-        const response = await fetch('http://localhost:3001/api/chat', {
+        console.log('Sending to localhost:8000/chat:', { message: content });
+        const response = await fetch('http://localhost:8000/chat', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            message: content,
-            conversation_id: sessionId
+            message: content
           }),
         });
 
@@ -137,12 +137,21 @@ const OpenWebUIInterface = () => {
         }
 
         const data = await response.json();
+        console.log('Response from chat service:', data);
+        
+        // Extract the output from the response structure
+        let aiResponseContent = 'Sorry, I encountered an error processing your request.';
+        if (data.status === 'success' && data.output) {
+          aiResponseContent = data.output;
+        } else if (data.response) {
+          aiResponseContent = data.response;
+        }
         
         // Add AI response
         const aiMessage: Message = {
           id: `msg_${Date.now() + 1}`,
           type: 'assistant',
-          content: data.response || 'Sorry, I encountered an error processing your request.',
+          content: aiResponseContent,
           timestamp: new Date()
         };
 
@@ -195,7 +204,7 @@ const OpenWebUIInterface = () => {
   return (
     <div className="h-screen bg-stone-50">
       <ResizablePanelGroup direction="horizontal" className="h-full">
-        <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
+        <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
           <div className="h-full bg-white border-r border-stone-200">
             <ChatSidebar
               onNewChat={handleNewChat}
@@ -208,7 +217,7 @@ const OpenWebUIInterface = () => {
         
         <ResizableHandle withHandle />
         
-        <ResizablePanel defaultSize={75}>
+        <ResizablePanel defaultSize={80}>
           <div className="h-full bg-white">
             <ChatWindow
               messages={currentMessages}

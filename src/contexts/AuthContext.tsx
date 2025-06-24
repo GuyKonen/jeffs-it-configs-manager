@@ -6,12 +6,13 @@ interface LocalUser {
   id: string;
   username: string;
   role: string;
+  totp_enabled?: boolean;
 }
 
 interface AuthContextType {
   user: LocalUser | null;
   loading: boolean;
-  signInWithUsername: (username: string, password: string) => Promise<{ error?: string }>;
+  signInWithUsername: (username: string, password: string, totpToken?: string) => Promise<{ error?: string; requiresTotp?: boolean }>;
   signOut: () => Promise<void>;
 }
 
@@ -51,9 +52,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initializeAuth();
   }, []);
 
-  const signInWithUsername = async (username: string, password: string) => {
+  const signInWithUsername = async (username: string, password: string, totpToken?: string) => {
     try {
-      const foundUser = await database.getUserByCredentials(username, password);
+      const foundUser = await database.getUserByCredentials(username, password, totpToken);
       
       if (!foundUser) {
         return { error: 'Invalid username or password' };
@@ -62,15 +63,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const userData = {
         id: foundUser.id,
         username: foundUser.username,
-        role: foundUser.role
+        role: foundUser.role,
+        totp_enabled: foundUser.totp_enabled
       };
 
       localStorage.setItem('local_auth', JSON.stringify(userData));
       setUser(userData);
 
       return {};
-    } catch (error) {
+    } catch (error: any) {
       console.error('Local auth error:', error);
+      if (error.message === 'TOTP_REQUIRED') {
+        return { requiresTotp: true };
+      }
       return { error: 'Authentication failed' };
     }
   };

@@ -42,7 +42,7 @@ const Index = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center justify-center space-x-3 flex-1">
               <div className="p-2 bg-primary rounded-full">
-                <Settings className="h-6 w-6 text-primary-foreground" />
+                <img src="/lovable-uploads/uploaded-file.png" alt="Company Logo" className="h-6 w-6" />
               </div>
               <h1 className="text-3xl font-bold text-foreground">JeffFromIT</h1>
             </div>
@@ -58,7 +58,7 @@ const Index = () => {
           <div className="px-6 bg-card border-b border-border">
             <TabsList className="grid w-full grid-cols-3 lg:w-fit lg:mx-auto bg-muted">
               <TabsTrigger value="config" className="flex items-center gap-2 data-[state=active]:bg-card">
-                <Settings className="h-4 w-4" />
+                <img src="/lovable-uploads/uploaded-file.png" alt="Config" className="h-4 w-4" />
                 Config
               </TabsTrigger>
               {user.role === 'admin' && (

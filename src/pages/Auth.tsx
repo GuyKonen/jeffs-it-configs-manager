@@ -4,7 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Settings, User } from 'lucide-react';
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
+import { User } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -15,6 +16,8 @@ const Auth = () => {
   const { toast } = useToast();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [totpToken, setTotpToken] = useState('');
+  const [requiresTotp, setRequiresTotp] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
 
   useEffect(() => {
@@ -34,15 +37,31 @@ const Auth = () => {
       return;
     }
 
+    if (requiresTotp && !totpToken) {
+      toast({
+        title: "TOTP Required",
+        description: "Please enter your 6-digit TOTP code.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSigningIn(true);
-    const { error } = await signInWithUsername(username, password);
+    const { error, requiresTotp: needsTotp } = await signInWithUsername(username, password, totpToken);
     
-    if (error) {
+    if (needsTotp) {
+      setRequiresTotp(true);
+      toast({
+        title: "TOTP Required",
+        description: "Please enter your 6-digit authentication code.",
+      });
+    } else if (error) {
       toast({
         title: "Authentication Failed",
         description: error,
         variant: "destructive",
       });
+      setRequiresTotp(false);
     } else {
       toast({
         title: "Welcome!",
@@ -67,7 +86,7 @@ const Auth = () => {
         <div className="text-center space-y-4 mb-8">
           <div className="flex items-center justify-center space-x-3">
             <div className="p-3 bg-primary rounded-full">
-              <Settings className="h-8 w-8 text-primary-foreground" />
+              <img src="/lovable-uploads/uploaded-file.png" alt="Company Logo" className="h-8 w-8" />
             </div>
             <h1 className="text-3xl font-bold text-slate-800">JeffFromIT</h1>
           </div>
@@ -81,7 +100,7 @@ const Auth = () => {
           <CardHeader className="text-center">
             <CardTitle className="text-xl">Welcome Back</CardTitle>
             <CardDescription>
-              Sign in with your admin credentials
+              Sign in with your admin credentials {requiresTotp && '+ TOTP'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -95,6 +114,7 @@ const Auth = () => {
                   placeholder="Enter admin username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
+                  disabled={requiresTotp}
                 />
               </div>
               <div className="space-y-2">
@@ -105,16 +125,54 @@ const Auth = () => {
                   placeholder="Enter password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  disabled={requiresTotp}
                 />
               </div>
+              
+              {requiresTotp && (
+                <div className="space-y-2">
+                  <Label htmlFor="totp">Authentication Code</Label>
+                  <div className="flex justify-center">
+                    <InputOTP
+                      maxLength={6}
+                      value={totpToken}
+                      onChange={(value) => setTotpToken(value)}
+                    >
+                      <InputOTPGroup>
+                        <InputOTPSlot index={0} />
+                        <InputOTPSlot index={1} />
+                        <InputOTPSlot index={2} />
+                        <InputOTPSlot index={3} />
+                        <InputOTPSlot index={4} />
+                        <InputOTPSlot index={5} />
+                      </InputOTPGroup>
+                    </InputOTP>
+                  </div>
+                </div>
+              )}
+              
               <Button
                 type="submit"
                 className="w-full"
                 disabled={isSigningIn}
               >
                 <User className="h-4 w-4 mr-2" />
-                {isSigningIn ? 'Signing in...' : 'Sign in as Admin'}
+                {isSigningIn ? 'Signing in...' : (requiresTotp ? 'Verify & Sign in' : 'Sign in as Admin')}
               </Button>
+              
+              {requiresTotp && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    setRequiresTotp(false);
+                    setTotpToken('');
+                  }}
+                >
+                  Back to Login
+                </Button>
+              )}
             </form>
           </CardContent>
         </Card>
