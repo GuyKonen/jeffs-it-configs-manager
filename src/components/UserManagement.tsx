@@ -46,10 +46,12 @@ const UserManagement = () => {
 
   const loadUsers = async () => {
     try {
+      console.log('CLIENT: Loading users...');
       const users = await database.getAllUsers();
+      console.log('CLIENT: Loaded users:', users);
       setUsers(users);
     } catch (error) {
-      console.error('Error loading users:', error);
+      console.error('CLIENT: Error loading users:', error);
       toast({
         title: "Error",
         description: "Failed to load users.",
@@ -64,16 +66,22 @@ const UserManagement = () => {
     e.preventDefault();
     
     try {
+      console.log('CLIENT: Creating user with data:', formData);
+      
       // First create the user
-      await database.createUser(formData);
+      const newUser = await database.createUser(formData);
+      console.log('CLIENT: User created successfully:', newUser);
       
-      // Load users to get the newly created user
+      // Load users to refresh the list
       await loadUsers();
-      const newUser = users.find(u => u.username === formData.username);
       
-      if (newUser) {
+      // Find the newly created user to get its ID
+      const createdUser = users.find(u => u.username === formData.username);
+      console.log('CLIENT: Found created user:', createdUser);
+      
+      if (createdUser) {
         // Automatically setup TOTP for the new user
-        await setupTotpForUser(newUser.id);
+        await setupTotpForUser(createdUser.id);
         setShowCreateDialog(false);
         setFormData({ username: '', password: '', role: 'user', is_active: true });
         
@@ -81,9 +89,18 @@ const UserManagement = () => {
           title: "User Created",
           description: "User created successfully. Please set up TOTP authentication.",
         });
+      } else {
+        console.log('CLIENT: Could not find newly created user, proceeding without TOTP setup');
+        setShowCreateDialog(false);
+        setFormData({ username: '', password: '', role: 'user', is_active: true });
+        
+        toast({
+          title: "User Created",
+          description: "User created successfully.",
+        });
       }
     } catch (error) {
-      console.error('Error creating user:', error);
+      console.error('CLIENT: Error creating user:', error);
       toast({
         title: "Error",
         description: "Failed to create user.",
@@ -94,7 +111,7 @@ const UserManagement = () => {
 
   const setupTotpForUser = async (userId: string) => {
     try {
-      console.log('Setting up TOTP for user:', userId);
+      console.log('CLIENT: Setting up TOTP for user:', userId);
       const response = await fetch('http://localhost:3001/api/totp/setup', {
         method: 'POST',
         headers: {
@@ -106,16 +123,17 @@ const UserManagement = () => {
       const data = await response.json();
       
       if (!response.ok) {
+        console.error('CLIENT: TOTP setup failed:', data);
         throw new Error(data.error || 'Failed to setup TOTP');
       }
 
-      console.log('TOTP setup response:', data);
+      console.log('CLIENT: TOTP setup response:', data);
       setTotpSecret(data.secret);
       setTotpQrUrl(data.qr_code_url);
       setCurrentTotpUserId(userId);
       setShowTotpDialog(true);
     } catch (error) {
-      console.error('Error setting up TOTP:', error);
+      console.error('CLIENT: Error setting up TOTP:', error);
       toast({
         title: "TOTP Setup Failed",
         description: error instanceof Error ? error.message : "Failed to setup TOTP",
@@ -128,6 +146,7 @@ const UserManagement = () => {
     if (!currentTotpUserId || !totpToken) return;
 
     try {
+      console.log('CLIENT: Enabling TOTP for user:', currentTotpUserId);
       const response = await fetch('http://localhost:3001/api/totp/enable', {
         method: 'POST',
         headers: {
@@ -142,6 +161,7 @@ const UserManagement = () => {
       const data = await response.json();
       
       if (!response.ok) {
+        console.error('CLIENT: TOTP enable failed:', data);
         throw new Error(data.error || 'Failed to enable TOTP');
       }
 
@@ -158,7 +178,7 @@ const UserManagement = () => {
         description: "Two-factor authentication has been enabled successfully.",
       });
     } catch (error) {
-      console.error('Error enabling TOTP:', error);
+      console.error('CLIENT: Error enabling TOTP:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to enable TOTP",
@@ -172,6 +192,7 @@ const UserManagement = () => {
     if (!editingUser) return;
 
     try {
+      console.log('CLIENT: Updating user:', editingUser.id, formData);
       await database.updateUser(editingUser.id, formData);
       await loadUsers();
       setEditingUser(null);
@@ -182,7 +203,7 @@ const UserManagement = () => {
         description: "User updated successfully.",
       });
     } catch (error) {
-      console.error('Error updating user:', error);
+      console.error('CLIENT: Error updating user:', error);
       toast({
         title: "Error",
         description: "Failed to update user.",
@@ -193,6 +214,7 @@ const UserManagement = () => {
 
   const handleDeleteUser = async (userId: string) => {
     try {
+      console.log('CLIENT: Deleting user:', userId);
       await database.deleteUser(userId);
       await loadUsers();
       
@@ -201,7 +223,7 @@ const UserManagement = () => {
         description: "User deleted successfully.",
       });
     } catch (error) {
-      console.error('Error deleting user:', error);
+      console.error('CLIENT: Error deleting user:', error);
       toast({
         title: "Error",
         description: "Failed to delete user.",
@@ -243,59 +265,65 @@ const UserManagement = () => {
       <Card>
         <CardHeader>
           <CardTitle>Users</CardTitle>
-          <CardDescription>All registered users in the system</CardDescription>
+          <CardDescription>All registered users in the system ({users.length} total)</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {users.map((user) => (
-              <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center space-x-4">
-                  <div>
-                    <p className="font-medium">{user.username}</p>
-                    <div className="flex items-center space-x-2 mt-1">
-                      <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
-                        {user.role}
-                      </Badge>
-                      {user.totp_enabled && (
-                        <Badge variant="outline" className="text-green-600">
-                          <Shield className="h-3 w-3 mr-1" />
-                          2FA
+            {users.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No users found. Try refreshing or create a new user.
+              </div>
+            ) : (
+              users.map((user) => (
+                <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center space-x-4">
+                    <div>
+                      <p className="font-medium">{user.username}</p>
+                      <div className="flex items-center space-x-2 mt-1">
+                        <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
+                          {user.role}
                         </Badge>
-                      )}
-                      <Badge variant={user.is_active ? 'default' : 'destructive'}>
-                        {user.is_active ? 'Active' : 'Inactive'}
-                      </Badge>
+                        {user.totp_enabled && (
+                          <Badge variant="outline" className="text-green-600">
+                            <Shield className="h-3 w-3 mr-1" />
+                            2FA
+                          </Badge>
+                        )}
+                        <Badge variant={user.is_active ? 'default' : 'destructive'}>
+                          {user.is_active ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  {!user.totp_enabled && (
+                  <div className="flex items-center space-x-2">
+                    {!user.totp_enabled && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setupTotpForUser(user.id)}
+                      >
+                        <Key className="h-4 w-4 mr-1" />
+                        Setup 2FA
+                      </Button>
+                    )}
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setupTotpForUser(user.id)}
+                      onClick={() => startEdit(user)}
                     >
-                      <Key className="h-4 w-4 mr-1" />
-                      Setup 2FA
+                      <Edit className="h-4 w-4" />
                     </Button>
-                  )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => startEdit(user)}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDeleteUser(user.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeleteUser(user.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </CardContent>
       </Card>

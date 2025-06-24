@@ -42,7 +42,7 @@ const Index = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center justify-center space-x-3 flex-1">
               <div className="p-2 bg-primary rounded-full">
-                <img src="/lovable-uploads/uploaded-file.png" alt="Company Logo" className="h-6 w-6" />
+                <img src="/lovable-uploads/414ac00c-0904-438a-b9cc-96ba875719a0.png" alt="Company Logo" className="h-6 w-6" />
               </div>
               <h1 className="text-3xl font-bold text-foreground">JeffFromIT</h1>
             </div>

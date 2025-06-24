@@ -1,3 +1,4 @@
+
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
@@ -191,28 +192,39 @@ app.post('/api/env-config', (req, res) => {
 // Auth endpoints
 app.post('/api/auth/login', async (req, res) => {
   const { username, password, totp_token } = req.body;
+  console.log('Login attempt for username:', username);
   
   db.get("SELECT * FROM users WHERE username = ? AND is_active = 1", [username], async (err, user) => {
     if (err) {
+      console.error('Database error during login:', err);
       return res.status(500).json({ error: 'Database error' });
     }
     
-    if (!user || !bcrypt.compareSync(password, user.password_hash)) {
+    if (!user) {
+      console.log('User not found or inactive:', username);
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+    
+    if (!bcrypt.compareSync(password, user.password_hash)) {
+      console.log('Invalid password for user:', username);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
     
     // Check TOTP if enabled
     if (user.totp_enabled && user.totp_secret) {
       if (!totp_token) {
+        console.log('TOTP token required for user:', username);
         return res.status(401).json({ error: 'TOTP token required', requires_totp: true });
       }
       
       const { authenticator } = require('otplib');
       if (!authenticator.verify({ token: totp_token, secret: user.totp_secret })) {
+        console.log('Invalid TOTP token for user:', username);
         return res.status(401).json({ error: 'Invalid TOTP token' });
       }
     }
     
+    console.log('Successful login for user:', username);
     res.json({
       id: user.id,
       username: user.username,
@@ -225,78 +237,121 @@ app.post('/api/auth/login', async (req, res) => {
 // TOTP setup endpoints
 app.post('/api/totp/setup', (req, res) => {
   const { user_id } = req.body;
-  const { authenticator } = require('otplib');
-  const secret = authenticator.generateSecret();
+  console.log('Setting up TOTP for user ID:', user_id);
   
-  db.run("UPDATE users SET totp_secret = ? WHERE id = ?", [secret, user_id], (err) => {
-    if (err) {
-      return res.status(500).json({ error: 'Failed to setup TOTP' });
-    }
+  try {
+    const { authenticator } = require('otplib');
+    const secret = authenticator.generateSecret();
     
-    const qrCodeUrl = authenticator.keyuri('JeffFromIT', 'JeffFromIT', secret);
-    res.json({ secret, qr_code_url: qrCodeUrl });
-  });
+    db.run("UPDATE users SET totp_secret = ? WHERE id = ?", [secret, user_id], (err) => {
+      if (err) {
+        console.error('Error setting up TOTP:', err);
+        return res.status(500).json({ error: 'Failed to setup TOTP' });
+      }
+      
+      const qrCodeUrl = authenticator.keyuri('JeffFromIT', 'JeffFromIT', secret);
+      console.log('TOTP setup successful for user ID:', user_id);
+      res.json({ secret, qr_code_url: qrCodeUrl });
+    });
+  } catch (error) {
+    console.error('Error in TOTP setup - otplib not installed?:', error);
+    return res.status(500).json({ error: 'TOTP library not available. Please install otplib.' });
+  }
 });
 
 app.post('/api/totp/enable', (req, res) => {
   const { user_id, token } = req.body;
+  console.log('Enabling TOTP for user ID:', user_id);
   
   db.get("SELECT totp_secret FROM users WHERE id = ?", [user_id], (err, user) => {
     if (err || !user) {
+      console.error('User not found for TOTP enable:', user_id, err);
       return res.status(500).json({ error: 'User not found' });
     }
     
-    const { authenticator } = require('otplib');
-    if (!authenticator.verify({ token, secret: user.totp_secret })) {
-      return res.status(401).json({ error: 'Invalid TOTP token' });
-    }
-    
-    db.run("UPDATE users SET totp_enabled = 1 WHERE id = ?", [user_id], (err) => {
-      if (err) {
-        return res.status(500).json({ error: 'Failed to enable TOTP' });
+    try {
+      const { authenticator } = require('otplib');
+      if (!authenticator.verify({ token, secret: user.totp_secret })) {
+        console.log('Invalid TOTP token during enable for user ID:', user_id);
+        return res.status(401).json({ error: 'Invalid TOTP token' });
       }
-      res.json({ success: true });
-    });
+      
+      db.run("UPDATE users SET totp_enabled = 1 WHERE id = ?", [user_id], (err) => {
+        if (err) {
+          console.error('Error enabling TOTP:', err);
+          return res.status(500).json({ error: 'Failed to enable TOTP' });
+        }
+        console.log('TOTP enabled successfully for user ID:', user_id);
+        res.json({ success: true });
+      });
+    } catch (error) {
+      console.error('Error in TOTP enable - otplib not installed?:', error);
+      return res.status(500).json({ error: 'TOTP library not available. Please install otplib.' });
+    }
   });
 });
 
 app.post('/api/totp/disable', (req, res) => {
   const { user_id } = req.body;
+  console.log('Disabling TOTP for user ID:', user_id);
   
   db.run("UPDATE users SET totp_enabled = 0, totp_secret = NULL WHERE id = ?", [user_id], (err) => {
     if (err) {
+      console.error('Error disabling TOTP:', err);
       return res.status(500).json({ error: 'Failed to disable TOTP' });
     }
+    console.log('TOTP disabled successfully for user ID:', user_id);
     res.json({ success: true });
   });
 });
 
 // User management endpoints
 app.get('/api/users', (req, res) => {
+  console.log('Fetching all users');
   db.all("SELECT id, username, role, is_active, totp_enabled, created_at FROM users ORDER BY created_at DESC", (err, rows) => {
     if (err) {
+      console.error('Database error fetching users:', err);
       return res.status(500).json({ error: 'Database error' });
     }
+    console.log('Found users:', rows.length);
     res.json(rows);
   });
 });
 
 app.post('/api/users', async (req, res) => {
   const { username, password, role, is_active } = req.body;
-  const hashedPassword = bcrypt.hashSync(password, 10);
+  console.log('Creating user:', { username, role, is_active });
   
-  db.run("INSERT INTO users (username, password_hash, role, is_active) VALUES (?, ?, ?, ?)", 
-    [username, hashedPassword, role, is_active ? 1 : 0], function(err) {
-    if (err) {
-      return res.status(500).json({ error: 'Failed to create user' });
-    }
-    res.json({ id: this.lastID });
-  });
+  if (!username || !password) {
+    console.log('Missing required fields for user creation');
+    return res.status(400).json({ error: 'Username and password are required' });
+  }
+  
+  try {
+    const hashedPassword = bcrypt.hashSync(password, 10);
+    
+    db.run("INSERT INTO users (username, password_hash, role, is_active) VALUES (?, ?, ?, ?)", 
+      [username, hashedPassword, role || 'user', is_active ? 1 : 0], function(err) {
+      if (err) {
+        console.error('Error creating user:', err);
+        if (err.code === 'SQLITE_CONSTRAINT') {
+          return res.status(400).json({ error: 'Username already exists' });
+        }
+        return res.status(500).json({ error: 'Failed to create user' });
+      }
+      console.log('User created successfully with ID:', this.lastID);
+      res.json({ id: this.lastID });
+    });
+  } catch (error) {
+    console.error('Error in user creation:', error);
+    res.status(500).json({ error: 'Failed to create user' });
+  }
 });
 
 app.put('/api/users/:id', async (req, res) => {
   const { id } = req.params;
   const { username, password, role, is_active } = req.body;
+  console.log('Updating user ID:', id, { username, role, is_active });
   
   let query = "UPDATE users SET role = ?, is_active = ?";
   let params = [role, is_active ? 1 : 0];
@@ -317,19 +372,24 @@ app.put('/api/users/:id', async (req, res) => {
   
   db.run(query, params, (err) => {
     if (err) {
+      console.error('Error updating user:', err);
       return res.status(500).json({ error: 'Failed to update user' });
     }
+    console.log('User updated successfully:', id);
     res.json({ success: true });
   });
 });
 
 app.delete('/api/users/:id', (req, res) => {
   const { id } = req.params;
+  console.log('Deleting user ID:', id);
   
   db.run("DELETE FROM users WHERE id = ?", [id], (err) => {
     if (err) {
+      console.error('Error deleting user:', err);
       return res.status(500).json({ error: 'Failed to delete user' });
     }
+    console.log('User deleted successfully:', id);
     res.json({ success: true });
   });
 });
