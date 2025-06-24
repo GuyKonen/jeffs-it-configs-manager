@@ -1,4 +1,3 @@
-
 const API_BASE_URL = 'http://localhost:3001/api';
 
 export interface User {
@@ -8,6 +7,7 @@ export interface User {
   role: string;
   created_at: string;
   is_active: boolean;
+  totp_enabled?: boolean;
 }
 
 export interface ChatSession {
@@ -32,17 +32,21 @@ class LocalApiDatabase {
   }
 
   // User methods
-  async getUserByCredentials(username: string, password: string): Promise<User | null> {
+  async getUserByCredentials(username: string, password: string, totpToken?: string): Promise<User | null> {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, password, totp_token: totpToken }),
       });
 
       if (!response.ok) {
+        const errorData = await response.json();
+        if (errorData.requires_totp) {
+          throw new Error('TOTP_REQUIRED');
+        }
         return null;
       }
 
@@ -53,10 +57,14 @@ class LocalApiDatabase {
         password: '', // Don't return password
         role: user.role,
         created_at: new Date().toISOString(),
-        is_active: true
+        is_active: true,
+        totp_enabled: user.totp_enabled
       };
     } catch (error) {
       console.error('Auth error:', error);
+      if (error.message === 'TOTP_REQUIRED') {
+        throw error;
+      }
       return null;
     }
   }
@@ -72,7 +80,8 @@ class LocalApiDatabase {
         password: '',
         role: user.role,
         created_at: user.created_at,
-        is_active: user.is_active
+        is_active: user.is_active,
+        totp_enabled: user.totp_enabled
       }));
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -105,7 +114,8 @@ class LocalApiDatabase {
       password: '',
       role: user.role,
       created_at: new Date().toISOString(),
-      is_active: user.is_active
+      is_active: user.is_active,
+      totp_enabled: user.totp_enabled
     };
   }
 
@@ -130,6 +140,51 @@ class LocalApiDatabase {
 
     if (!response.ok) {
       throw new Error('Failed to delete user');
+    }
+  }
+
+  // TOTP methods
+  async setupTOTP(userId: string): Promise<{ secret: string; qr_code_url: string }> {
+    const response = await fetch(`${API_BASE_URL}/totp/setup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ user_id: userId }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to setup TOTP');
+    }
+
+    return await response.json();
+  }
+
+  async enableTOTP(userId: string, token: string): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/totp/enable`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ user_id: userId, token }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to enable TOTP');
+    }
+  }
+
+  async disableTOTP(userId: string): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/totp/disable`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ user_id: userId }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to disable TOTP');
     }
   }
 
