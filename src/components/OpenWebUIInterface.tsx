@@ -52,39 +52,41 @@ const OpenWebUIInterface = () => {
       console.log('Loaded sessions:', sessionsData);
 
       if (sessionsData && sessionsData.length > 0) {
-        const formattedSessions = await Promise.all(
-          sessionsData.map(async (session) => {
-            const { data: messagesData, error: messagesError } = await supabase
-              .from('chat_messages')
-              .select('*')
-              .eq('session_id', session.id)
-              .order('created_at', { ascending: true });
+        // Process sessions one by one to avoid complex type inference
+        const formattedSessions: ChatSession[] = [];
+        
+        for (const session of sessionsData) {
+          const { data: messagesData, error: messagesError } = await supabase
+            .from('chat_messages')
+            .select('*')
+            .eq('session_id', session.id)
+            .order('created_at', { ascending: true });
 
-            if (messagesError) {
-              console.error('Error loading messages for session:', session.id, messagesError);
-              return {
-                id: session.id,
-                title: session.title || 'New Chat',
-                messages: [],
-                timestamp: new Date(session.created_at)
-              };
-            }
-
-            const formattedMessages = messagesData?.map(msg => ({
-              id: msg.id,
-              type: msg.type as 'user' | 'assistant',
-              content: msg.content,
-              timestamp: new Date(msg.created_at)
-            })) || [];
-
-            return {
+          if (messagesError) {
+            console.error('Error loading messages for session:', session.id, messagesError);
+            formattedSessions.push({
               id: session.id,
               title: session.title || 'New Chat',
-              messages: formattedMessages,
+              messages: [],
               timestamp: new Date(session.created_at)
-            };
-          })
-        );
+            });
+            continue;
+          }
+
+          const formattedMessages: Message[] = messagesData?.map(msg => ({
+            id: msg.id,
+            type: msg.type as 'user' | 'assistant',
+            content: msg.content,
+            timestamp: new Date(msg.created_at)
+          })) || [];
+
+          formattedSessions.push({
+            id: session.id,
+            title: session.title || 'New Chat',
+            messages: formattedMessages,
+            timestamp: new Date(session.created_at)
+          });
+        }
 
         setSessions(formattedSessions);
       }
@@ -230,10 +232,10 @@ const OpenWebUIInterface = () => {
   };
 
   return (
-    <div className="h-screen bg-background">
+    <div className="h-screen bg-stone-50">
       <ResizablePanelGroup direction="horizontal" className="h-full">
         <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
-          <div className="h-full bg-card border-r border-border">
+          <div className="h-full bg-white border-r border-stone-200">
             <ChatSidebar
               onNewChat={handleNewChat}
               sessions={sessions}
@@ -246,7 +248,7 @@ const OpenWebUIInterface = () => {
         <ResizableHandle withHandle />
         
         <ResizablePanel defaultSize={75}>
-          <div className="h-full bg-card">
+          <div className="h-full bg-white">
             <ChatWindow
               messages={currentMessages}
               onSendMessage={handleSendMessage}
