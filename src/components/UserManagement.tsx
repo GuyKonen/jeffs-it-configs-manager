@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { database } from '@/utils/database';
 
 interface User {
-  id: number;
+  id: string;
   username: string;
   role: string;
   is_active: boolean;
@@ -31,7 +31,7 @@ const UserManagement = () => {
   const [totpSecret, setTotpSecret] = useState('');
   const [totpQrUrl, setTotpQrUrl] = useState('');
   const [totpToken, setTotpToken] = useState('');
-  const [currentTotpUserId, setCurrentTotpUserId] = useState<number | null>(null);
+  const [currentTotpUserId, setCurrentTotpUserId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     username: '',
@@ -46,7 +46,7 @@ const UserManagement = () => {
 
   const loadUsers = async () => {
     try {
-      const users = await database.getUsers();
+      const users = await database.getAllUsers();
       setUsers(users);
     } catch (error) {
       console.error('Error loading users:', error);
@@ -92,7 +92,7 @@ const UserManagement = () => {
     }
   };
 
-  const setupTotpForUser = async (userId: number) => {
+  const setupTotpForUser = async (userId: string) => {
     try {
       console.log('Setting up TOTP for user:', userId);
       const response = await fetch('http://localhost:3001/api/totp/setup', {
@@ -191,7 +191,7 @@ const UserManagement = () => {
     }
   };
 
-  const handleDeleteUser = async (userId: number) => {
+  const handleDeleteUser = async (userId: string) => {
     try {
       await database.deleteUser(userId);
       await loadUsers();
