@@ -202,10 +202,10 @@ const OpenWebUIInterface = () => {
   };
 
   return (
-    <div className="h-screen bg-stone-50">
+    <div className="h-screen bg-stone-50 flex">
       <ResizablePanelGroup direction="horizontal" className="h-full">
         <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
-          <div className="h-full bg-white border-r border-stone-200">
+          <div className="h-full bg-white border-r border-stone-200 flex flex-col">
             <ChatSidebar
               onNewChat={handleNewChat}
               sessions={sessions}

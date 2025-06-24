@@ -1,445 +1,409 @@
+
 import React, { useState, useEffect } from 'react';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableFooter,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
-import { useToast } from "@/hooks/use-toast"
-import { Settings, Trash2, User, UserPlus, Pencil, Shield, ShieldCheck } from "lucide-react";
-import { useAuth } from '@/contexts/AuthContext';
-import { database, User as UserData } from '@/utils/database';
+import { Users, Plus, Edit, Trash2, Shield, Key } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { database } from '@/utils/database';
+
+interface User {
+  id: number;
+  username: string;
+  role: string;
+  is_active: boolean;
+  totp_enabled?: boolean;
+  created_at: string;
+}
 
 const UserManagement = () => {
-  const [users, setUsers] = useState<UserData[]>([]);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isTotpSetupOpen, setIsTotpSetupOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
-  const [editPassword, setEditPassword] = useState('');
+  const { toast } = useToast();
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showTotpDialog, setShowTotpDialog] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
   const [totpSecret, setTotpSecret] = useState('');
-  const [qrCodeUrl, setQrCodeUrl] = useState('');
+  const [totpQrUrl, setTotpQrUrl] = useState('');
   const [totpToken, setTotpToken] = useState('');
-  const [newUser, setNewUser] = useState({
+  const [currentTotpUserId, setCurrentTotpUserId] = useState<number | null>(null);
+
+  const [formData, setFormData] = useState({
     username: '',
     password: '',
-    role: 'user'
+    role: 'user',
+    is_active: true
   });
-  const { toast } = useToast();
-  const { user } = useAuth();
-
-  const fetchUsers = async () => {
-    setIsLoading(true);
-    try {
-      const allUsers = await database.getAllUsers();
-      setUsers(allUsers);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch users",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   useEffect(() => {
-    fetchUsers();
+    loadUsers();
   }, []);
 
-  const setupTOTP = async (userId: string) => {
+  const loadUsers = async () => {
     try {
-      const { secret, qr_code_url } = await database.setupTOTP(userId);
-      setTotpSecret(secret);
-      setQrCodeUrl(qr_code_url);
-      setIsTotpSetupOpen(true);
+      const users = await database.getUsers();
+      setUsers(users);
     } catch (error) {
+      console.error('Error loading users:', error);
       toast({
         title: "Error",
-        description: "Failed to setup TOTP",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const enableTOTP = async (userId: string, token: string) => {
-    try {
-      await database.enableTOTP(userId, token);
-      toast({
-        title: "Success",
-        description: "TOTP enabled successfully",
-      });
-      setIsTotpSetupOpen(false);
-      await fetchUsers();
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Invalid TOTP token",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const disableTOTP = async (userId: string) => {
-    try {
-      await database.disableTOTP(userId);
-      toast({
-        title: "Success",
-        description: "TOTP disabled successfully",
-      });
-      await fetchUsers();
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to disable TOTP",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const updateUser = async (userId: string, userData: { password?: string; role?: string }) => {
-    try {
-      setIsLoading(true);
-      await database.updateUser(userId, userData);
-      
-      toast({
-        title: "Success",
-        description: "User updated successfully",
-      });
-
-      await fetchUsers();
-      setIsEditDialogOpen(false);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to update user",
+        description: "Failed to load users.",
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const deleteUser = async (userId: string) => {
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
     try {
-      setIsLoading(true);
+      // First create the user
+      await database.createUser(formData);
+      
+      // Load users to get the newly created user
+      await loadUsers();
+      const newUser = users.find(u => u.username === formData.username);
+      
+      if (newUser) {
+        // Automatically setup TOTP for the new user
+        await setupTotpForUser(newUser.id);
+        setShowCreateDialog(false);
+        setFormData({ username: '', password: '', role: 'user', is_active: true });
+        
+        toast({
+          title: "User Created",
+          description: "User created successfully. Please set up TOTP authentication.",
+        });
+      }
+    } catch (error) {
+      console.error('Error creating user:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create user.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const setupTotpForUser = async (userId: number) => {
+    try {
+      console.log('Setting up TOTP for user:', userId);
+      const response = await fetch('http://localhost:3001/api/totp/setup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ user_id: userId }),
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to setup TOTP');
+      }
+
+      console.log('TOTP setup response:', data);
+      setTotpSecret(data.secret);
+      setTotpQrUrl(data.qr_code_url);
+      setCurrentTotpUserId(userId);
+      setShowTotpDialog(true);
+    } catch (error) {
+      console.error('Error setting up TOTP:', error);
+      toast({
+        title: "TOTP Setup Failed",
+        description: error instanceof Error ? error.message : "Failed to setup TOTP",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const enableTotp = async () => {
+    if (!currentTotpUserId || !totpToken) return;
+
+    try {
+      const response = await fetch('http://localhost:3001/api/totp/enable', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          user_id: currentTotpUserId, 
+          token: totpToken 
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to enable TOTP');
+      }
+
+      setShowTotpDialog(false);
+      setTotpToken('');
+      setTotpSecret('');
+      setTotpQrUrl('');
+      setCurrentTotpUserId(null);
+      
+      await loadUsers();
+      
+      toast({
+        title: "TOTP Enabled",
+        description: "Two-factor authentication has been enabled successfully.",
+      });
+    } catch (error) {
+      console.error('Error enabling TOTP:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to enable TOTP",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleUpdateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+
+    try {
+      await database.updateUser(editingUser.id, formData);
+      await loadUsers();
+      setEditingUser(null);
+      setFormData({ username: '', password: '', role: 'user', is_active: true });
+      
+      toast({
+        title: "User Updated",
+        description: "User updated successfully.",
+      });
+    } catch (error) {
+      console.error('Error updating user:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update user.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteUser = async (userId: number) => {
+    try {
       await database.deleteUser(userId);
-
-      toast({
-        title: "Success",
-        description: "User deleted successfully",
-      });
-
-      await fetchUsers();
-      setIsDeleteDialogOpen(false);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to delete user",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const createUser = async (userData: { username: string; password: string; role: string }) => {
-    try {
-      setIsLoading(true);
+      await loadUsers();
       
-      const newUserData = await database.createUser({
-        username: userData.username,
-        password: userData.password,
-        role: userData.role,
-        is_active: true
-      });
-
       toast({
-        title: "User Created",
-        description: "User created successfully. Now setting up TOTP...",
+        title: "User Deleted",
+        description: "User deleted successfully.",
       });
-
-      // Automatically setup TOTP for new user
-      await setupTOTP(newUserData.id);
-      await fetchUsers();
-      setNewUser({ username: '', password: '', role: 'user' });
-      setIsCreateDialogOpen(false);
-    } catch (error: any) {
+    } catch (error) {
+      console.error('Error deleting user:', error);
       toast({
         title: "Error",
-        description: "Failed to create user",
+        description: "Failed to delete user.",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
     }
   };
+
+  const startEdit = (user: User) => {
+    setEditingUser(user);
+    setFormData({
+      username: user.username,
+      password: '',
+      role: user.role,
+      is_active: user.is_active
+    });
+  };
+
+  if (loading) {
+    return <div className="flex items-center justify-center p-8">Loading users...</div>;
+  }
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <Users className="h-6 w-6" />
+            User Management
+          </h2>
+          <p className="text-muted-foreground">Manage system users and their permissions</p>
+        </div>
+        <Button onClick={() => setShowCreateDialog(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add User
+        </Button>
+      </div>
+
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Settings className="h-5 w-5 mr-2" />
-            User Management (SQLite Database)
-          </CardTitle>
-          <CardDescription>Manage users with local SQLite database - TOTP required for all users</CardDescription>
+          <CardTitle>Users</CardTitle>
+          <CardDescription>All registered users in the system</CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Username</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>TOTP Status</TableHead>
-                <TableHead>Created At</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell>{user.username}</TableCell>
-                  <TableCell>{user.role}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      {user.totp_enabled ? (
-                        <ShieldCheck className="h-4 w-4 text-green-500" />
-                      ) : (
-                        <Shield className="h-4 w-4 text-red-500" />
+          <div className="space-y-4">
+            {users.map((user) => (
+              <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex items-center space-x-4">
+                  <div>
+                    <p className="font-medium">{user.username}</p>
+                    <div className="flex items-center space-x-2 mt-1">
+                      <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
+                        {user.role}
+                      </Badge>
+                      {user.totp_enabled && (
+                        <Badge variant="outline" className="text-green-600">
+                          <Shield className="h-3 w-3 mr-1" />
+                          2FA
+                        </Badge>
                       )}
-                      {user.totp_enabled ? 'Enabled' : 'Disabled'}
+                      <Badge variant={user.is_active ? 'default' : 'destructive'}>
+                        {user.is_active ? 'Active' : 'Inactive'}
+                      </Badge>
                     </div>
-                  </TableCell>
-                  <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
-                  <TableCell>{user.is_active ? 'Active' : 'Inactive'}</TableCell>
-                  <TableCell className="text-right font-medium">
-                    <div className="flex gap-1">
-                      <Button variant="ghost" size="sm" onClick={() => {
-                        setSelectedUser(user);
-                        setIsEditDialogOpen(true);
-                      }}>
-                        <Pencil className="h-4 w-4 mr-2" />
-                        Edit
-                      </Button>
-                      {!user.totp_enabled ? (
-                        <Button variant="ghost" size="sm" onClick={() => setupTOTP(user.id)}>
-                          <Shield className="h-4 w-4 mr-2" />
-                          Setup TOTP
-                        </Button>
-                      ) : (
-                        <Button variant="ghost" size="sm" onClick={() => disableTOTP(user.id)}>
-                          <ShieldCheck className="h-4 w-4 mr-2" />
-                          Disable TOTP
-                        </Button>
-                      )}
-                      <Button variant="ghost" size="sm" onClick={() => {
-                        setSelectedUser(user);
-                        setIsDeleteDialogOpen(true);
-                      }}>
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  {!user.totp_enabled && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setupTotpForUser(user.id)}
+                    >
+                      <Key className="h-4 w-4 mr-1" />
+                      Setup 2FA
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => startEdit(user)}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleDeleteUser(user.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
         </CardContent>
-        <CardFooter className="flex justify-between items-center">
-          <div></div>
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <UserPlus className="h-4 w-4 mr-2" />
-                Add User
-              </Button>
-            </DialogTrigger>
-          </Dialog>
-        </CardFooter>
       </Card>
 
-      {/* Create User Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+      {/* Create/Edit User Dialog */}
+      <Dialog open={showCreateDialog || !!editingUser} onOpenChange={() => {
+        setShowCreateDialog(false);
+        setEditingUser(null);
+        setFormData({ username: '', password: '', role: 'user', is_active: true });
+      }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create New User</DialogTitle>
+            <DialogTitle>{editingUser ? 'Edit User' : 'Create New User'}</DialogTitle>
             <DialogDescription>
-              Add a new user to the database.
+              {editingUser ? 'Update user information' : 'Add a new user to the system. TOTP will be set up automatically.'}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <form onSubmit={editingUser ? handleUpdateUser : handleCreateUser} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="username">Username</Label>
               <Input
                 id="username"
-                value={newUser.username}
-                onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
-                placeholder="Enter username"
+                value={formData.username}
+                onChange={(e) => setFormData({...formData, username: e.target.value})}
+                required
               />
             </div>
-            
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">Password {editingUser && '(leave empty to keep current)'}</Label>
               <Input
                 id="password"
                 type="password"
-                value={newUser.password}
-                onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                placeholder="Enter password"
+                value={formData.password}
+                onChange={(e) => setFormData({...formData, password: e.target.value})}
+                required={!editingUser}
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="role">Role</Label>
-              <Select value={newUser.role} onValueChange={(value) => setNewUser({ ...newUser, role: value })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="user">User</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                </SelectContent>
-              </Select>
+              <select
+                id="role"
+                value={formData.role}
+                onChange={(e) => setFormData({...formData, role: e.target.value})}
+                className="w-full p-2 border rounded-md"
+              >
+                <option value="user">User</option>
+                <option value="admin">Admin</option>
+              </select>
             </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={() => createUser(newUser)} disabled={isLoading}>
-              {isLoading ? "Creating..." : "Create User"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit User Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit User</DialogTitle>
-            <DialogDescription>
-              Make changes to the selected user's information.
-            </DialogDescription>
-          </DialogHeader>
-          {selectedUser && (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="role">Role</Label>
-                <Select
-                  value={selectedUser.role}
-                  onValueChange={(value) => setSelectedUser({ ...selectedUser, role: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="user">User</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">New Password (optional)</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Enter new password"
-                  value={editPassword}
-                  onChange={(e) => setEditPassword(e.target.value)}
-                />
-              </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                checked={formData.is_active}
+                onCheckedChange={(checked) => setFormData({...formData, is_active: checked})}
+              />
+              <Label>Active</Label>
             </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={() => updateUser(selectedUser!.id, {
-              role: selectedUser!.role,
-              ...(editPassword && { password: editPassword })
-            })} disabled={isLoading}>
-              {isLoading ? "Updating..." : "Update User"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete User Dialog */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete User</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this user? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={() => deleteUser(selectedUser!.id)} disabled={isLoading}>
-              {isLoading ? "Deleting..." : "Delete User"}
-            </Button>
-          </DialogFooter>
+            <div className="flex justify-end space-x-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowCreateDialog(false);
+                  setEditingUser(null);
+                  setFormData({ username: '', password: '', role: 'user', is_active: true });
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">
+                {editingUser ? 'Update' : 'Create'} User
+              </Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
 
       {/* TOTP Setup Dialog */}
-      <Dialog open={isTotpSetupOpen} onOpenChange={setIsTotpSetupOpen}>
-        <DialogContent>
+      <Dialog open={showTotpDialog} onOpenChange={(open) => {
+        if (!open) {
+          setShowTotpDialog(false);
+          setTotpToken('');
+          setTotpSecret('');
+          setTotpQrUrl('');
+          setCurrentTotpUserId(null);
+        }
+      }}>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Setup Two-Factor Authentication</DialogTitle>
             <DialogDescription>
-              Scan the QR code with your authenticator app and enter the 6-digit code to enable TOTP.
+              Scan the QR code with your authenticator app and enter the verification code
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            {qrCodeUrl && (
+            {totpQrUrl && (
               <div className="text-center">
-                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrCodeUrl)}`} alt="TOTP QR Code" className="mx-auto" />
-                <p className="text-sm text-muted-foreground mt-2">Secret: {totpSecret}</p>
+                <img 
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(totpQrUrl)}`}
+                  alt="TOTP QR Code"
+                  className="mx-auto"
+                />
+                <p className="text-sm text-muted-foreground mt-2">
+                  Manual entry key: <code className="bg-muted px-2 py-1 rounded">{totpSecret}</code>
+                </p>
               </div>
             )}
             <div className="space-y-2">
-              <Label>Enter 6-digit code from your authenticator app</Label>
+              <Label>Enter verification code from your authenticator app:</Label>
               <div className="flex justify-center">
                 <InputOTP
                   maxLength={6}
@@ -457,15 +421,27 @@ const UserManagement = () => {
                 </InputOTP>
               </div>
             </div>
+            <div className="flex justify-end space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowTotpDialog(false);
+                  setTotpToken('');
+                  setTotpSecret('');
+                  setTotpQrUrl('');
+                  setCurrentTotpUserId(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={enableTotp}
+                disabled={totpToken.length !== 6}
+              >
+                Enable 2FA
+              </Button>
+            </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsTotpSetupOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={() => enableTOTP(selectedUser?.id || '', totpToken)} disabled={totpToken.length !== 6}>
-              Enable TOTP
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

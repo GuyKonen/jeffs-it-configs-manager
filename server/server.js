@@ -3,6 +3,7 @@ const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -21,6 +22,9 @@ const db = new sqlite3.Database(dbPath, (err) => {
     initializeDatabase();
   }
 });
+
+// .env file path
+const envPath = path.join(__dirname, '..', '.env');
 
 // Initialize database tables and seed data
 function initializeDatabase() {
@@ -73,6 +77,116 @@ function initializeDatabase() {
     });
   });
 }
+
+// Helper functions for .env file management
+function readEnvFile() {
+  try {
+    if (!fs.existsSync(envPath)) {
+      console.log('.env file does not exist, creating default');
+      const defaultEnv = `# --- Azure MCP ---
+AZURE_MCP_SERVER_URL=
+AZURE_CLIENT_ID=
+AZURE_CLIENT_SECRET=
+
+# --- Slack ---
+SLACK_ACCESS_TOKEN=
+
+# --- Okta ---
+OKTA_CLIENT_ORGURL=
+OKTA_API_TOKEN=
+
+# --- Azure OpenAI ---
+OPENAI_RESOURCE_NAME=
+OPENAI_API_KEY=
+OPENAI_API_VERSION=
+OPENAI_DEPLOYMENT_NAME=
+OPENAI_MODEL=
+
+AZURE_TENANT_ID=
+`;
+      fs.writeFileSync(envPath, defaultEnv);
+      return defaultEnv;
+    }
+    
+    return fs.readFileSync(envPath, 'utf8');
+  } catch (error) {
+    console.error('Error reading .env file:', error);
+    return '';
+  }
+}
+
+function parseEnvContent(content) {
+  const configs = {};
+  const lines = content.split('\n');
+  
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed && !trimmed.startsWith('#')) {
+      const [key, ...valueParts] = trimmed.split('=');
+      if (key) {
+        configs[key.trim()] = valueParts.join('=') || '';
+      }
+    }
+  }
+  
+  return configs;
+}
+
+function generateEnvContent(configs) {
+  return `# --- Azure MCP ---
+AZURE_MCP_SERVER_URL=${configs.AZURE_MCP_SERVER_URL || ''}
+AZURE_CLIENT_ID=${configs.AZURE_CLIENT_ID || ''}
+AZURE_CLIENT_SECRET=${configs.AZURE_CLIENT_SECRET || ''}
+
+# --- Slack ---
+SLACK_ACCESS_TOKEN=${configs.SLACK_ACCESS_TOKEN || ''}
+
+# --- Okta ---
+OKTA_CLIENT_ORGURL=${configs.OKTA_CLIENT_ORGURL || ''}
+OKTA_API_TOKEN=${configs.OKTA_API_TOKEN || ''}
+
+# --- Azure OpenAI ---
+OPENAI_RESOURCE_NAME=${configs.OPENAI_RESOURCE_NAME || ''}
+OPENAI_API_KEY=${configs.OPENAI_API_KEY || ''}
+OPENAI_API_VERSION=${configs.OPENAI_API_VERSION || ''}
+OPENAI_DEPLOYMENT_NAME=${configs.OPENAI_DEPLOYMENT_NAME || ''}
+OPENAI_MODEL=${configs.OPENAI_MODEL || ''}
+
+AZURE_TENANT_ID=${configs.AZURE_TENANT_ID || ''}
+`;
+}
+
+// Environment configuration endpoints
+app.get('/api/env-config', (req, res) => {
+  try {
+    const envContent = readEnvFile();
+    const configs = parseEnvContent(envContent);
+    console.log('Retrieved env configs:', Object.keys(configs));
+    res.json(configs);
+  } catch (error) {
+    console.error('Error reading env config:', error);
+    res.status(500).json({ error: 'Failed to read environment configuration' });
+  }
+});
+
+app.post('/api/env-config', (req, res) => {
+  try {
+    const { configs } = req.body;
+    console.log('Updating env configs:', Object.keys(configs));
+    
+    const envContent = generateEnvContent(configs);
+    fs.writeFileSync(envPath, envContent);
+    
+    console.log('Successfully updated .env file');
+    res.json({ 
+      success: true, 
+      message: 'Environment configuration updated successfully' 
+    });
+  } catch (error) {
+    console.error('Error updating env config:', error);
+    res.status(500).json({ error: 'Failed to update environment configuration' });
+  }
+});
 
 // Auth endpoints
 app.post('/api/auth/login', async (req, res) => {
@@ -159,7 +273,7 @@ app.post('/api/totp/disable', (req, res) => {
 
 // User management endpoints
 app.get('/api/users', (req, res) => {
-  db.all("SELECT id, username, role, is_active, created_at FROM users ORDER BY created_at DESC", (err, rows) => {
+  db.all("SELECT id, username, role, is_active, totp_enabled, created_at FROM users ORDER BY created_at DESC", (err, rows) => {
     if (err) {
       return res.status(500).json({ error: 'Database error' });
     }
