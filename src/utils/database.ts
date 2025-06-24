@@ -1,14 +1,5 @@
 
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Missing Supabase environment variables');
-}
-
-const supabase = createClient(supabaseUrl, supabaseKey);
+const API_BASE_URL = 'http://localhost:3001/api';
 
 export interface User {
   id: string;
@@ -34,207 +25,183 @@ export interface Message {
   timestamp: string;
 }
 
-class SupabaseDatabase {
+class LocalApiDatabase {
   async init() {
-    // Check if tables exist and seed if needed
-    await this.seedData();
-  }
-
-  private async seedData() {
-    // Check if admin user exists
-    const { data: existingAdmin } = await supabase
-      .from('user_credentials')
-      .select('id')
-      .eq('username', 'admin')
-      .single();
-
-    if (!existingAdmin) {
-      // Create admin user
-      await supabase
-        .from('user_credentials')
-        .insert({
-          username: 'admin',
-          password_hash: '$2a$10$N9qo8uLOickgx2ZMRZoMye',  // bcrypt hash for '123'
-          role: 'admin',
-          is_active: true
-        });
-
-      // Create regular user
-      await supabase
-        .from('user_credentials')
-        .insert({
-          username: 'user',
-          password_hash: '$2a$10$N9qo8uLOickgx2ZMRZoMye',  // bcrypt hash for 'user'
-          role: 'user',
-          is_active: true
-        });
-    }
+    // No initialization needed - server handles database setup
+    console.log('Database initialized - using local API server');
   }
 
   // User methods
   async getUserByCredentials(username: string, password: string): Promise<User | null> {
-    const { data } = await supabase.rpc('authenticate_user', {
-      p_username: username,
-      p_password: password
-    });
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+      });
 
-    if (data && data.length > 0) {
-      const user = data[0];
+      if (!response.ok) {
+        return null;
+      }
+
+      const user = await response.json();
       return {
-        id: user.user_id,
+        id: user.id.toString(),
         username: user.username,
         password: '', // Don't return password
         role: user.role,
         created_at: new Date().toISOString(),
-        is_active: user.is_active
+        is_active: true
       };
+    } catch (error) {
+      console.error('Auth error:', error);
+      return null;
     }
-
-    return null;
   }
 
   async getAllUsers(): Promise<User[]> {
-    const { data, error } = await supabase
-      .from('user_credentials')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/users`);
+      const users = await response.json();
+      
+      return users.map((user: any) => ({
+        id: user.id.toString(),
+        username: user.username,
+        password: '',
+        role: user.role,
+        created_at: user.created_at,
+        is_active: user.is_active
+      }));
+    } catch (error) {
       console.error('Error fetching users:', error);
       return [];
     }
-
-    return data.map(user => ({
-      id: user.id,
-      username: user.username,
-      password: '', // Don't return password
-      role: user.role,
-      created_at: user.created_at,
-      is_active: user.is_active
-    }));
   }
 
   async createUser(user: Omit<User, 'id' | 'created_at'>): Promise<User> {
-    const { data, error } = await supabase
-      .from('user_credentials')
-      .insert({
+    const response = await fetch(`${API_BASE_URL}/users`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
         username: user.username,
-        password_hash: user.password, // In production, this should be hashed
+        password: user.password,
         role: user.role,
         is_active: user.is_active
-      })
-      .select()
-      .single();
+      }),
+    });
 
-    if (error) {
-      throw new Error(`Failed to create user: ${error.message}`);
+    if (!response.ok) {
+      throw new Error('Failed to create user');
     }
 
+    const result = await response.json();
     return {
-      id: data.id,
-      username: data.username,
+      id: result.id.toString(),
+      username: user.username,
       password: '',
-      role: data.role,
-      created_at: data.created_at,
-      is_active: data.is_active
+      role: user.role,
+      created_at: new Date().toISOString(),
+      is_active: user.is_active
     };
   }
 
   async updateUser(id: string, updates: Partial<Omit<User, 'id' | 'created_at'>>): Promise<void> {
-    const updateData: any = {};
-    
-    if (updates.username) updateData.username = updates.username;
-    if (updates.password) updateData.password_hash = updates.password; // In production, hash this
-    if (updates.role) updateData.role = updates.role;
-    if (updates.is_active !== undefined) updateData.is_active = updates.is_active;
+    const response = await fetch(`${API_BASE_URL}/users/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(updates),
+    });
 
-    const { error } = await supabase
-      .from('user_credentials')
-      .update(updateData)
-      .eq('id', id);
-
-    if (error) {
-      throw new Error(`Failed to update user: ${error.message}`);
+    if (!response.ok) {
+      throw new Error('Failed to update user');
     }
   }
 
   async deleteUser(id: string): Promise<void> {
-    const { error } = await supabase
-      .from('user_credentials')
-      .delete()
-      .eq('id', id);
+    const response = await fetch(`${API_BASE_URL}/users/${id}`, {
+      method: 'DELETE',
+    });
 
-    if (error) {
-      throw new Error(`Failed to delete user: ${error.message}`);
+    if (!response.ok) {
+      throw new Error('Failed to delete user');
     }
   }
 
   // Chat session methods
   async getChatSessions(userId: string): Promise<ChatSession[]> {
-    const { data, error } = await supabase
-      .from('chat_sessions')
-      .select('*')
-      .eq('user_id', userId)
-      .order('timestamp', { ascending: false });
-
-    if (error) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/chat-sessions/${userId}`);
+      const sessions = await response.json();
+      return sessions || [];
+    } catch (error) {
       console.error('Error fetching chat sessions:', error);
       return [];
     }
-
-    return data || [];
   }
 
   async createChatSession(session: ChatSession): Promise<void> {
-    const { error } = await supabase
-      .from('chat_sessions')
-      .insert(session);
+    const response = await fetch(`${API_BASE_URL}/chat-sessions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(session),
+    });
 
-    if (error) {
-      throw new Error(`Failed to create chat session: ${error.message}`);
+    if (!response.ok) {
+      throw new Error('Failed to create chat session');
     }
   }
 
   async updateChatSession(id: string, updates: Partial<Omit<ChatSession, 'id' | 'user_id'>>): Promise<void> {
-    const { error } = await supabase
-      .from('chat_sessions')
-      .update(updates)
-      .eq('id', id);
+    const response = await fetch(`${API_BASE_URL}/chat-sessions/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(updates),
+    });
 
-    if (error) {
-      throw new Error(`Failed to update chat session: ${error.message}`);
+    if (!response.ok) {
+      throw new Error('Failed to update chat session');
     }
   }
 
   // Message methods
   async getMessages(sessionId: string): Promise<Message[]> {
-    const { data, error } = await supabase
-      .from('messages')
-      .select('*')
-      .eq('session_id', sessionId)
-      .order('timestamp', { ascending: true });
-
-    if (error) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/messages/${sessionId}`);
+      const messages = await response.json();
+      return messages || [];
+    } catch (error) {
       console.error('Error fetching messages:', error);
       return [];
     }
-
-    return data || [];
   }
 
   async createMessage(message: Message): Promise<void> {
-    const { error } = await supabase
-      .from('messages')
-      .insert(message);
+    const response = await fetch(`${API_BASE_URL}/messages`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(message),
+    });
 
-    if (error) {
-      throw new Error(`Failed to create message: ${error.message}`);
+    if (!response.ok) {
+      throw new Error('Failed to create message');
     }
   }
 
   async close() {
-    // No cleanup needed for Supabase client
+    // No cleanup needed for HTTP client
   }
 }
 
-export const database = new SupabaseDatabase();
+export const database = new LocalApiDatabase();

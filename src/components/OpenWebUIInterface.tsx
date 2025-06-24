@@ -119,9 +119,9 @@ const OpenWebUIInterface = () => {
         timestamp: userMessage.timestamp.toISOString()
       });
 
-      // Send to AI API (localhost:8000)
+      // Send to local API server (localhost:3001)
       try {
-        const response = await fetch('http://localhost:8000/api/chat', {
+        const response = await fetch('http://localhost:3001/api/chat', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -165,7 +165,7 @@ const OpenWebUIInterface = () => {
         const errorMessage: Message = {
           id: `msg_${Date.now() + 1}`,
           type: 'assistant',
-          content: 'Sorry, I\'m having trouble connecting to the AI service. Please make sure the server is running on localhost:8000.',
+          content: 'Sorry, I\'m having trouble connecting to the AI service. Please make sure the backend server is running on localhost:3001.',
           timestamp: new Date()
         };
 
