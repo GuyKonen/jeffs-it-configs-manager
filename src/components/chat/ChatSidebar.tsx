@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, MessageSquare, Plus } from 'lucide-react';
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
+import { Search, MessageSquare, Plus, MoreHorizontal, Star, Download, Trash2 } from 'lucide-react';
 
 interface Message {
   id: string;
@@ -18,6 +19,7 @@ interface ChatSession {
   title: string;
   messages: Message[];
   timestamp: Date;
+  starred?: boolean;
 }
 
 interface ChatSidebarProps {
@@ -25,9 +27,20 @@ interface ChatSidebarProps {
   sessions: ChatSession[];
   currentSessionId: string | null;
   onSessionSelect: (sessionId: string) => void;
+  onStarChat: (sessionId: string) => void;
+  onDownloadChat: (session: ChatSession) => void;
+  onDeleteChat: (sessionId: string) => void;
 }
 
-const ChatSidebar = ({ onNewChat, sessions, currentSessionId, onSessionSelect }: ChatSidebarProps) => {
+const ChatSidebar = ({ 
+  onNewChat, 
+  sessions, 
+  currentSessionId, 
+  onSessionSelect,
+  onStarChat,
+  onDownloadChat,
+  onDeleteChat
+}: ChatSidebarProps) => {
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredSessions = sessions.filter(session =>
@@ -83,26 +96,69 @@ const ChatSidebar = ({ onNewChat, sessions, currentSessionId, onSessionSelect }:
         ) : (
           <div className="p-2">
             {filteredSessions.map((session) => (
-              <Button
-                key={session.id}
-                variant="ghost"
-                className={`w-full justify-start p-3 mb-1 h-auto ${
-                  currentSessionId === session.id 
-                    ? 'bg-accent text-accent-foreground' 
-                    : 'hover:bg-muted'
-                }`}
-                onClick={() => onSessionSelect(session.id)}
-              >
-                <div className="flex flex-col items-start w-full">
-                  <div className="flex items-center gap-2 w-full">
-                    <MessageSquare className="h-4 w-4 flex-shrink-0" />
-                    <span className="text-sm font-medium truncate">{session.title}</span>
+              <ContextMenu key={session.id}>
+                <ContextMenuTrigger asChild>
+                  <div className="relative group">
+                    <Button
+                      variant="ghost"
+                      className={`w-full justify-start p-3 mb-1 h-auto ${
+                        currentSessionId === session.id 
+                          ? 'bg-accent text-accent-foreground' 
+                          : 'hover:bg-muted'
+                      }`}
+                      onClick={() => onSessionSelect(session.id)}
+                    >
+                      <div className="flex flex-col items-start w-full">
+                        <div className="flex items-center gap-2 w-full">
+                          <MessageSquare className="h-4 w-4 flex-shrink-0" />
+                          {session.starred && <Star className="h-3 w-3 text-yellow-500 fill-current" />}
+                          <span className="text-sm font-medium truncate flex-1">{session.title}</span>
+                        </div>
+                        <span className="text-xs text-muted-foreground ml-6">
+                          {session.timestamp.toLocaleDateString()}
+                        </span>
+                      </div>
+                    </Button>
+                    
+                    {/* Three dots button */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // The context menu will handle the actions
+                      }}
+                    >
+                      <MoreHorizontal className="h-3 w-3" />
+                    </Button>
                   </div>
-                  <span className="text-xs text-muted-foreground ml-6">
-                    {session.timestamp.toLocaleDateString()}
-                  </span>
-                </div>
-              </Button>
+                </ContextMenuTrigger>
+                
+                <ContextMenuContent className="w-48">
+                  <ContextMenuItem 
+                    onClick={() => onStarChat(session.id)}
+                    className="flex items-center gap-2"
+                  >
+                    <Star className="h-4 w-4" />
+                    {session.starred ? 'Unstar Chat' : 'Star Chat'}
+                  </ContextMenuItem>
+                  <ContextMenuItem 
+                    onClick={() => onDownloadChat(session)}
+                    className="flex items-center gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    Download Chat
+                  </ContextMenuItem>
+                  <ContextMenuItem 
+                    onClick={() => onDeleteChat(session.id)}
+                    className="flex items-center gap-2 text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete Chat
+                  </ContextMenuItem>
+                </ContextMenuContent>
+              </ContextMenu>
             ))}
           </div>
         )}

@@ -4,7 +4,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Copy, RotateCcw, User, Send, Mic, Plus, Square } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface Message {
   id: string;
@@ -17,9 +17,10 @@ interface ChatWindowProps {
   messages: Message[];
   onSendMessage: (content: string) => Promise<void>;
   isLoading: boolean;
+  lastUserMessage?: string;
 }
 
-const ChatWindow = ({ messages, onSendMessage, isLoading }: ChatWindowProps) => {
+const ChatWindow = ({ messages, onSendMessage, isLoading, lastUserMessage }: ChatWindowProps) => {
   const [inputMessage, setInputMessage] = useState('');
 
   const copyToClipboard = (text: string) => {
@@ -38,6 +39,9 @@ const ChatWindow = ({ messages, onSendMessage, isLoading }: ChatWindowProps) => 
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
+    } else if (e.key === 'ArrowUp' && !inputMessage.trim() && lastUserMessage) {
+      e.preventDefault();
+      setInputMessage(lastUserMessage);
     }
   };
 
@@ -197,6 +201,13 @@ const ChatWindow = ({ messages, onSendMessage, isLoading }: ChatWindowProps) => 
                   <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                 </div>
                 <span>AI is generating a response...</span>
+              </div>
+            )}
+            
+            {/* Helper text */}
+            {!inputMessage.trim() && lastUserMessage && (
+              <div className="mt-2 text-xs text-muted-foreground">
+                Press ↑ to recall your last message
               </div>
             )}
           </div>

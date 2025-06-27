@@ -20,9 +20,10 @@ interface ChatSession {
   title: string;
   messages: Message[];
   timestamp: Date;
+  starred?: boolean;
 }
 
-type InterfaceMode = 'chat' | 'azure' | 'okta';
+type InterfaceMode = 'chat' | 'azure' | 'okta' | 'test';
 
 const OpenWebUIInterface = () => {
   const { user } = useAuth();
@@ -31,6 +32,7 @@ const OpenWebUIInterface = () => {
   const [currentMessages, setCurrentMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [interfaceMode, setInterfaceMode] = useState<InterfaceMode>('chat');
+  const [lastUserMessage, setLastUserMessage] = useState<string>('');
 
   // Load chat sessions from database
   useEffect(() => {
@@ -54,9 +56,17 @@ const OpenWebUIInterface = () => {
           id: session.id,
           title: session.title,
           messages,
-          timestamp: new Date(session.timestamp)
+          timestamp: new Date(session.timestamp),
+          starred: session.starred || false
         };
       }));
+      
+      // Sort sessions: starred first, then by timestamp
+      sessionsWithMessages.sort((a, b) => {
+        if (a.starred && !b.starred) return -1;
+        if (!a.starred && b.starred) return 1;
+        return b.timestamp.getTime() - a.timestamp.getTime();
+      });
       
       setSessions(sessionsWithMessages);
     } catch (error) {
@@ -79,6 +89,48 @@ const OpenWebUIInterface = () => {
     }
   };
 
+  const handleStarChat = async (sessionId: string) => {
+    try {
+      await database.starChatSession(sessionId);
+      await loadChatSessions();
+    } catch (error) {
+      console.error('Error starring chat session:', error);
+    }
+  };
+
+  const handleDownloadChat = (session: ChatSession) => {
+    const chatData = {
+      title: session.title,
+      timestamp: session.timestamp,
+      messages: session.messages.map(msg => ({
+        type: msg.type,
+        content: msg.content,
+        timestamp: msg.timestamp
+      }))
+    };
+    
+    const blob = new Blob([JSON.stringify(chatData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `chat-${session.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDeleteChat = async (sessionId: string) => {
+    try {
+      await database.deleteChatSession(sessionId);
+      if (currentSessionId === sessionId) {
+        setCurrentSessionId(null);
+        setCurrentMessages([]);
+      }
+      await loadChatSessions();
+    } catch (error) {
+      console.error('Error deleting chat session:', error);
+    }
+  };
+
   const getEndpointUrl = (mode: InterfaceMode): string => {
     const baseUrl = 'http://localhost:8000';
     switch (mode) {
@@ -88,6 +140,8 @@ const OpenWebUIInterface = () => {
         return `${baseUrl}/azure`;
       case 'okta':
         return `${baseUrl}/okta`;
+      case 'test':
+        return `${baseUrl}/test`;
       default:
         return `${baseUrl}/chat`;
     }
@@ -98,6 +152,7 @@ const OpenWebUIInterface = () => {
 
     console.log('Sending message:', content);
     setIsLoading(true);
+    setLastUserMessage(content); // Store the last user message
 
     try {
       let sessionId = currentSessionId;
@@ -254,6 +309,16 @@ const OpenWebUIInterface = () => {
             </div>
             Okta
           </Button>
+          <Button
+            variant={interfaceMode === 'test' ? 'default' : 'outline'}
+            onClick={() => setInterfaceMode('test')}
+            className="flex items-center gap-2"
+          >
+            <div className="w-4 h-4 bg-green-600 rounded flex items-center justify-center">
+              <span className="text-white text-xs font-bold">T</span>
+            </div>
+            Test
+          </Button>
         </div>
       </div>
 
@@ -267,6 +332,9 @@ const OpenWebUIInterface = () => {
                 sessions={sessions}
                 currentSessionId={currentSessionId}
                 onSessionSelect={handleSessionSelect}
+                onStarChat={handleStarChat}
+                onDownloadChat={handleDownloadChat}
+                onDeleteChat={handleDeleteChat}
               />
             </div>
           </ResizablePanel>
@@ -279,6 +347,7 @@ const OpenWebUIInterface = () => {
                 messages={currentMessages}
                 onSendMessage={handleSendMessage}
                 isLoading={isLoading}
+                lastUserMessage={lastUserMessage}
               />
             </div>
           </ResizablePanel>
