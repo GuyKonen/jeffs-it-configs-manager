@@ -23,13 +23,17 @@ export const database = {
       // Enable foreign key support
       await this.db.exec('PRAGMA foreign_keys = ON;');
 
-      // Create users table
+      // Create users table with username support
       await this.db.exec(`
         CREATE TABLE IF NOT EXISTS users (
           id TEXT PRIMARY KEY,
+          username TEXT UNIQUE,
           email TEXT UNIQUE,
           password TEXT,
           role TEXT DEFAULT 'user',
+          is_active INTEGER DEFAULT 1,
+          totp_enabled INTEGER DEFAULT 0,
+          totp_secret TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
@@ -65,62 +69,83 @@ export const database = {
     }
   },
 
-  async createUser(user: { id: string; email: string; password?: string; role?: string }) {
+  async createUser(user: { id?: string; username?: string; email?: string; password?: string; role?: string; is_active?: boolean }) {
     return new Promise((resolve, reject) => {
+      const id = user.id || `user_${Date.now()}`;
       const sql = `
-        INSERT INTO users (id, email, password, role)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO users (id, username, email, password, role, is_active)
+        VALUES (?, ?, ?, ?, ?, ?)
       `;
-      this.db.run(sql, [user.id, user.email, user.password, user.role], function(err) {
+      this.db.run(sql, [id, user.username, user.email, user.password, user.role || 'user', user.is_active ? 1 : 0], function(err: any) {
         if (err) {
           console.error('Error creating user:', err);
           reject(err);
         } else {
-          console.log('User created with id:', user.id);
-          resolve(this.lastID);
+          console.log('User created with id:', id);
+          resolve({ id, ...user });
         }
       });
     });
   },
 
-  async findUserByEmail(email: string) {
+  async getAllUsers() {
     return new Promise((resolve, reject) => {
       const sql = `
-        SELECT * FROM users WHERE email = ?
+        SELECT id, username, email, role, is_active, totp_enabled, created_at FROM users
       `;
-      this.db.get(sql, [email], (err, row) => {
+      this.db.all(sql, [], (err: any, rows: any) => {
         if (err) {
-          console.error('Error finding user by email:', err);
+          console.error('Error getting all users:', err);
           reject(err);
         } else {
-          resolve(row);
+          const users = rows.map((row: any) => ({
+            ...row,
+            is_active: Boolean(row.is_active),
+            totp_enabled: Boolean(row.totp_enabled)
+          }));
+          resolve(users);
         }
       });
     });
   },
 
-  async findUserById(id: string) {
+  async getUserByCredentials(username: string, password: string, totpToken?: string) {
     return new Promise((resolve, reject) => {
       const sql = `
-        SELECT * FROM users WHERE id = ?
+        SELECT * FROM users WHERE username = ? AND password = ? AND is_active = 1
       `;
-      this.db.get(sql, [id], (err, row) => {
+      this.db.get(sql, [username, password], (err: any, row: any) => {
         if (err) {
-          console.error('Error finding user by id:', err);
+          console.error('Error finding user by credentials:', err);
           reject(err);
+        } else if (!row) {
+          resolve(null);
         } else {
-          resolve(row);
+          // If TOTP is enabled for user, check token
+          if (row.totp_enabled && !totpToken) {
+            reject(new Error('TOTP_REQUIRED'));
+          } else {
+            resolve({
+              ...row,
+              is_active: Boolean(row.is_active),
+              totp_enabled: Boolean(row.totp_enabled)
+            });
+          }
         }
       });
     });
   },
 
-  async updateUser(id: string, updates: { email?: string; password?: string; role?: string }) {
+  async updateUser(id: string, updates: { username?: string; email?: string; password?: string; role?: string; is_active?: boolean }) {
     return new Promise((resolve, reject) => {
-      const { email, password, role } = updates;
+      const { username, email, password, role, is_active } = updates;
       let sql = `UPDATE users SET updated_at = CURRENT_TIMESTAMP`;
       const params: any[] = [];
 
+      if (username) {
+        sql += `, username = ?`;
+        params.push(username);
+      }
       if (email) {
         sql += `, email = ?`;
         params.push(email);
@@ -133,11 +158,15 @@ export const database = {
         sql += `, role = ?`;
         params.push(role);
       }
+      if (is_active !== undefined) {
+        sql += `, is_active = ?`;
+        params.push(is_active ? 1 : 0);
+      }
 
       sql += ` WHERE id = ?`;
       params.push(id);
 
-      this.db.run(sql, params, function(err) {
+      this.db.run(sql, params, function(err: any) {
         if (err) {
           console.error('Error updating user:', err);
           reject(err);
@@ -154,13 +183,45 @@ export const database = {
       const sql = `
         DELETE FROM users WHERE id = ?
       `;
-      this.db.run(sql, [id], function(err) {
+      this.db.run(sql, [id], function(err: any) {
         if (err) {
           console.error('Error deleting user:', err);
           reject(err);
         } else {
           console.log('User deleted with id:', id);
           resolve(this.changes);
+        }
+      });
+    });
+  },
+
+  async findUserByEmail(email: string) {
+    return new Promise((resolve, reject) => {
+      const sql = `
+        SELECT * FROM users WHERE email = ?
+      `;
+      this.db.get(sql, [email], (err: any, row: any) => {
+        if (err) {
+          console.error('Error finding user by email:', err);
+          reject(err);
+        } else {
+          resolve(row);
+        }
+      });
+    });
+  },
+
+  async findUserById(id: string) {
+    return new Promise((resolve, reject) => {
+      const sql = `
+        SELECT * FROM users WHERE id = ?
+      `;
+      this.db.get(sql, [id], (err: any, row: any) => {
+        if (err) {
+          console.error('Error finding user by id:', err);
+          reject(err);
+        } else {
+          resolve(row);
         }
       });
     });
@@ -177,7 +238,7 @@ export const database = {
         INSERT INTO chat_sessions (id, user_id, title, timestamp)
         VALUES (?, ?, ?, ?)
       `;
-      this.db.run(sql, [session.id, session.user_id, session.title, session.timestamp], function(err) {
+      this.db.run(sql, [session.id, session.user_id, session.title, session.timestamp], function(err: any) {
         if (err) {
           console.error('Error creating chat session:', err);
           reject(err);
@@ -194,12 +255,12 @@ export const database = {
       const sql = `
         SELECT * FROM chat_sessions WHERE user_id = ?
       `;
-      this.db.all(sql, [userId], (err, rows) => {
+      this.db.all(sql, [userId], (err: any, rows: any) => {
         if (err) {
           console.error('Error getting chat sessions:', err);
           reject(err);
         } else {
-          resolve(rows);
+          resolve(rows || []);
         }
       });
     });
@@ -217,7 +278,7 @@ export const database = {
         INSERT INTO messages (id, session_id, type, content, timestamp)
         VALUES (?, ?, ?, ?, ?)
       `;
-      this.db.run(sql, [message.id, message.session_id, message.type, message.content, message.timestamp], function(err) {
+      this.db.run(sql, [message.id, message.session_id, message.type, message.content, message.timestamp], function(err: any) {
         if (err) {
           console.error('Error creating message:', err);
           reject(err);
@@ -234,12 +295,12 @@ export const database = {
       const sql = `
         SELECT * FROM messages WHERE session_id = ?
       `;
-      this.db.all(sql, [sessionId], (err, rows) => {
+      this.db.all(sql, [sessionId], (err: any, rows: any) => {
         if (err) {
           console.error('Error getting messages:', err);
           reject(err);
         } else {
-          resolve(rows);
+          resolve(rows || []);
         }
       });
     });
@@ -253,7 +314,7 @@ export const database = {
         WHERE id = ?
       `;
       
-      this.db.run(sql, [sessionId], function(err) {
+      this.db.run(sql, [sessionId], function(err: any) {
         if (err) {
           console.error('Error toggling star status:', err);
           reject(err);
@@ -270,7 +331,7 @@ export const database = {
       // First delete all messages in the session
       const deleteMessages = `DELETE FROM messages WHERE session_id = ?`;
       
-      this.db.run(deleteMessages, [sessionId], (err) => {
+      this.db.run(deleteMessages, [sessionId], (err: any) => {
         if (err) {
           console.error('Error deleting messages:', err);
           reject(err);
@@ -279,7 +340,7 @@ export const database = {
         
         // Then delete the session
         const deleteSession = `DELETE FROM chat_sessions WHERE id = ?`;
-        this.db.run(deleteSession, [sessionId], function(err) {
+        this.db.run(deleteSession, [sessionId], function(err: any) {
           if (err) {
             console.error('Error deleting chat session:', err);
             reject(err);

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Button } from '@/components/ui/button';
@@ -45,9 +44,9 @@ const OpenWebUIInterface = () => {
     try {
       console.log('Loading chat sessions for user:', user.id);
       
-      const dbSessions = await database.getChatSessions(user.id);
-      const sessionsWithMessages = await Promise.all(dbSessions.map(async session => {
-        const messages = (await database.getMessages(session.id)).map(msg => ({
+      const dbSessions = await database.getChatSessions(user.id) as any[];
+      const sessionsWithMessages = await Promise.all((dbSessions || []).map(async session => {
+        const messages = ((await database.getMessages(session.id)) as any[]).map(msg => ({
           ...msg,
           timestamp: new Date(msg.timestamp)
         }));
