@@ -1,69 +1,57 @@
-import { open } from 'sqlite';
-import sqlite3 from 'sqlite3';
 
-let dbPromise: Promise<any> | null = null;
+// In-memory database implementation for browser environment
+interface User {
+  id: string;
+  username?: string;
+  email?: string;
+  password?: string;
+  role?: string;
+  is_active?: boolean;
+  totp_enabled?: boolean;
+  totp_secret?: string;
+  created_at?: string;
+  updated_at?: string;
+}
 
-const initializeDatabase = async () => {
-  if (!dbPromise) {
-    dbPromise = open({
-      filename: './database.db',
-      driver: sqlite3.Database,
-    });
-  }
-  return dbPromise;
-};
+interface ChatSession {
+  id: string;
+  user_id: string;
+  title: string;
+  timestamp: string;
+  starred?: number;
+}
+
+interface Message {
+  id: string;
+  session_id: string;
+  type: string;
+  content: string;
+  timestamp: string;
+}
+
+// In-memory storage
+let users: User[] = [];
+let chatSessions: ChatSession[] = [];
+let messages: Message[] = [];
 
 export const database = {
   db: null as any,
 
   async init() {
     try {
-      this.db = await initializeDatabase();
+      console.log('Database initialized (in-memory)');
       
-      // Enable foreign key support
-      await this.db.exec('PRAGMA foreign_keys = ON;');
-
-      // Create users table with username support
-      await this.db.exec(`
-        CREATE TABLE IF NOT EXISTS users (
-          id TEXT PRIMARY KEY,
-          username TEXT UNIQUE,
-          email TEXT UNIQUE,
-          password TEXT,
-          role TEXT DEFAULT 'user',
-          is_active INTEGER DEFAULT 1,
-          totp_enabled INTEGER DEFAULT 0,
-          totp_secret TEXT,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-      `);
-
-      // Create chat_sessions table
-      await this.db.exec(`
-        CREATE TABLE IF NOT EXISTS chat_sessions (
-          id TEXT PRIMARY KEY,
-          user_id TEXT,
-          title TEXT,
-          timestamp DATETIME,
-          starred INTEGER DEFAULT 0,
-          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        )
-      `);
-
-      // Create messages table
-      await this.db.exec(`
-        CREATE TABLE IF NOT EXISTS messages (
-          id TEXT PRIMARY KEY,
-          session_id TEXT,
-          type TEXT,
-          content TEXT,
-          timestamp DATETIME,
-          FOREIGN KEY (session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE
-        )
-      `);
-
-      console.log('Database initialized');
+      // Initialize with a default admin user if none exists
+      if (users.length === 0) {
+        await this.createUser({
+          id: 'admin_1',
+          username: 'admin',
+          email: 'admin@example.com',
+          password: 'admin123',
+          role: 'admin',
+          is_active: true
+        });
+      }
     } catch (err) {
       console.error('Error initializing database', err);
     }
@@ -71,159 +59,134 @@ export const database = {
 
   async createUser(user: { id?: string; username?: string; email?: string; password?: string; role?: string; is_active?: boolean }) {
     return new Promise((resolve, reject) => {
-      const id = user.id || `user_${Date.now()}`;
-      const sql = `
-        INSERT INTO users (id, username, email, password, role, is_active)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `;
-      this.db.run(sql, [id, user.username, user.email, user.password, user.role || 'user', user.is_active ? 1 : 0], function(err: any) {
-        if (err) {
-          console.error('Error creating user:', err);
-          reject(err);
-        } else {
-          console.log('User created with id:', id);
-          resolve({ id, ...user });
-        }
-      });
+      try {
+        const id = user.id || `user_${Date.now()}`;
+        const newUser: User = {
+          id,
+          username: user.username,
+          email: user.email,
+          password: user.password,
+          role: user.role || 'user',
+          is_active: user.is_active !== false,
+          totp_enabled: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        
+        users.push(newUser);
+        console.log('User created with id:', id);
+        resolve({ id, ...user });
+      } catch (err) {
+        console.error('Error creating user:', err);
+        reject(err);
+      }
     });
   },
 
   async getAllUsers(): Promise<any[]> {
     return new Promise((resolve, reject) => {
-      const sql = `
-        SELECT id, username, email, role, is_active, totp_enabled, created_at FROM users
-      `;
-      this.db.all(sql, [], (err: any, rows: any) => {
-        if (err) {
-          console.error('Error getting all users:', err);
-          reject(err);
-        } else {
-          const users = (rows || []).map((row: any) => ({
-            ...row,
-            is_active: Boolean(row.is_active),
-            totp_enabled: Boolean(row.totp_enabled)
-          }));
-          resolve(users);
-        }
-      });
+      try {
+        const userList = users.map(user => ({
+          ...user,
+          is_active: Boolean(user.is_active),
+          totp_enabled: Boolean(user.totp_enabled)
+        }));
+        resolve(userList);
+      } catch (err) {
+        console.error('Error getting all users:', err);
+        reject(err);
+      }
     });
   },
 
   async getUserByCredentials(username: string, password: string, totpToken?: string): Promise<any> {
     return new Promise((resolve, reject) => {
-      const sql = `
-        SELECT * FROM users WHERE username = ? AND password = ? AND is_active = 1
-      `;
-      this.db.get(sql, [username, password], (err: any, row: any) => {
-        if (err) {
-          console.error('Error finding user by credentials:', err);
-          reject(err);
-        } else if (!row) {
+      try {
+        const user = users.find(u => u.username === username && u.password === password && u.is_active);
+        
+        if (!user) {
           resolve(null);
         } else {
           // If TOTP is enabled for user, check token
-          if (row.totp_enabled && !totpToken) {
+          if (user.totp_enabled && !totpToken) {
             reject(new Error('TOTP_REQUIRED'));
           } else {
             resolve({
-              ...row,
-              is_active: Boolean(row.is_active),
-              totp_enabled: Boolean(row.totp_enabled)
+              ...user,
+              is_active: Boolean(user.is_active),
+              totp_enabled: Boolean(user.totp_enabled)
             });
           }
         }
-      });
+      } catch (err) {
+        console.error('Error finding user by credentials:', err);
+        reject(err);
+      }
     });
   },
 
   async updateUser(id: string, updates: { username?: string; email?: string; password?: string; role?: string; is_active?: boolean }) {
     return new Promise((resolve, reject) => {
-      const { username, email, password, role, is_active } = updates;
-      let sql = `UPDATE users SET updated_at = CURRENT_TIMESTAMP`;
-      const params: any[] = [];
-
-      if (username) {
-        sql += `, username = ?`;
-        params.push(username);
-      }
-      if (email) {
-        sql += `, email = ?`;
-        params.push(email);
-      }
-      if (password) {
-        sql += `, password = ?`;
-        params.push(password);
-      }
-      if (role) {
-        sql += `, role = ?`;
-        params.push(role);
-      }
-      if (is_active !== undefined) {
-        sql += `, is_active = ?`;
-        params.push(is_active ? 1 : 0);
-      }
-
-      sql += ` WHERE id = ?`;
-      params.push(id);
-
-      this.db.run(sql, params, function(err: any) {
-        if (err) {
-          console.error('Error updating user:', err);
-          reject(err);
-        } else {
-          console.log('User updated with id:', id);
-          resolve(this.changes);
+      try {
+        const userIndex = users.findIndex(u => u.id === id);
+        if (userIndex === -1) {
+          reject(new Error('User not found'));
+          return;
         }
-      });
+
+        const user = users[userIndex];
+        users[userIndex] = {
+          ...user,
+          ...updates,
+          updated_at: new Date().toISOString()
+        };
+
+        console.log('User updated with id:', id);
+        resolve(1);
+      } catch (err) {
+        console.error('Error updating user:', err);
+        reject(err);
+      }
     });
   },
 
   async deleteUser(id: string) {
     return new Promise((resolve, reject) => {
-      const sql = `
-        DELETE FROM users WHERE id = ?
-      `;
-      this.db.run(sql, [id], function(err: any) {
-        if (err) {
-          console.error('Error deleting user:', err);
-          reject(err);
-        } else {
-          console.log('User deleted with id:', id);
-          resolve(this.changes);
-        }
-      });
+      try {
+        const initialLength = users.length;
+        users = users.filter(u => u.id !== id);
+        const changes = initialLength - users.length;
+        
+        console.log('User deleted with id:', id);
+        resolve(changes);
+      } catch (err) {
+        console.error('Error deleting user:', err);
+        reject(err);
+      }
     });
   },
 
   async findUserByEmail(email: string) {
     return new Promise((resolve, reject) => {
-      const sql = `
-        SELECT * FROM users WHERE email = ?
-      `;
-      this.db.get(sql, [email], (err: any, row: any) => {
-        if (err) {
-          console.error('Error finding user by email:', err);
-          reject(err);
-        } else {
-          resolve(row);
-        }
-      });
+      try {
+        const user = users.find(u => u.email === email);
+        resolve(user || null);
+      } catch (err) {
+        console.error('Error finding user by email:', err);
+        reject(err);
+      }
     });
   },
 
   async findUserById(id: string) {
     return new Promise((resolve, reject) => {
-      const sql = `
-        SELECT * FROM users WHERE id = ?
-      `;
-      this.db.get(sql, [id], (err: any, row: any) => {
-        if (err) {
-          console.error('Error finding user by id:', err);
-          reject(err);
-        } else {
-          resolve(row);
-        }
-      });
+      try {
+        const user = users.find(u => u.id === id);
+        resolve(user || null);
+      } catch (err) {
+        console.error('Error finding user by id:', err);
+        reject(err);
+      }
     });
   },
 
@@ -234,35 +197,30 @@ export const database = {
     timestamp: string;
   }) {
     return new Promise((resolve, reject) => {
-      const sql = `
-        INSERT INTO chat_sessions (id, user_id, title, timestamp)
-        VALUES (?, ?, ?, ?)
-      `;
-      this.db.run(sql, [session.id, session.user_id, session.title, session.timestamp], function(err: any) {
-        if (err) {
-          console.error('Error creating chat session:', err);
-          reject(err);
-        } else {
-          console.log('Chat session created with id:', session.id);
-          resolve(this.lastID);
-        }
-      });
+      try {
+        const newSession: ChatSession = {
+          ...session,
+          starred: 0
+        };
+        chatSessions.push(newSession);
+        console.log('Chat session created with id:', session.id);
+        resolve(session.id);
+      } catch (err) {
+        console.error('Error creating chat session:', err);
+        reject(err);
+      }
     });
   },
 
   async getChatSessions(userId: string) {
     return new Promise((resolve, reject) => {
-      const sql = `
-        SELECT * FROM chat_sessions WHERE user_id = ?
-      `;
-      this.db.all(sql, [userId], (err: any, rows: any) => {
-        if (err) {
-          console.error('Error getting chat sessions:', err);
-          reject(err);
-        } else {
-          resolve(rows || []);
-        }
-      });
+      try {
+        const sessions = chatSessions.filter(s => s.user_id === userId);
+        resolve(sessions);
+      } catch (err) {
+        console.error('Error getting chat sessions:', err);
+        reject(err);
+      }
     });
   },
 
@@ -274,82 +232,65 @@ export const database = {
     timestamp: string;
   }) {
     return new Promise((resolve, reject) => {
-      const sql = `
-        INSERT INTO messages (id, session_id, type, content, timestamp)
-        VALUES (?, ?, ?, ?, ?)
-      `;
-      this.db.run(sql, [message.id, message.session_id, message.type, message.content, message.timestamp], function(err: any) {
-        if (err) {
-          console.error('Error creating message:', err);
-          reject(err);
-        } else {
-          console.log('Message created with id:', message.id);
-          resolve(this.lastID);
-        }
-      });
+      try {
+        messages.push(message);
+        console.log('Message created with id:', message.id);
+        resolve(message.id);
+      } catch (err) {
+        console.error('Error creating message:', err);
+        reject(err);
+      }
     });
   },
 
   async getMessages(sessionId: string) {
     return new Promise((resolve, reject) => {
-      const sql = `
-        SELECT * FROM messages WHERE session_id = ?
-      `;
-      this.db.all(sql, [sessionId], (err: any, rows: any) => {
-        if (err) {
-          console.error('Error getting messages:', err);
-          reject(err);
-        } else {
-          resolve(rows || []);
-        }
-      });
+      try {
+        const sessionMessages = messages.filter(m => m.session_id === sessionId);
+        resolve(sessionMessages);
+      } catch (err) {
+        console.error('Error getting messages:', err);
+        reject(err);
+      }
     });
   },
 
   async starChatSession(sessionId: string) {
     return new Promise((resolve, reject) => {
-      const sql = `
-        UPDATE chat_sessions 
-        SET starred = CASE WHEN starred = 1 THEN 0 ELSE 1 END 
-        WHERE id = ?
-      `;
-      
-      this.db.run(sql, [sessionId], function(err: any) {
-        if (err) {
-          console.error('Error toggling star status:', err);
-          reject(err);
-        } else {
+      try {
+        const sessionIndex = chatSessions.findIndex(s => s.id === sessionId);
+        if (sessionIndex !== -1) {
+          chatSessions[sessionIndex].starred = chatSessions[sessionIndex].starred ? 0 : 1;
           console.log('Star status toggled for session:', sessionId);
-          resolve(this.changes);
+          resolve(1);
+        } else {
+          resolve(0);
         }
-      });
+      } catch (err) {
+        console.error('Error toggling star status:', err);
+        reject(err);
+      }
     });
   },
 
   async deleteChatSession(sessionId: string) {
     return new Promise((resolve, reject) => {
-      // First delete all messages in the session
-      const deleteMessages = `DELETE FROM messages WHERE session_id = ?`;
-      
-      this.db.run(deleteMessages, [sessionId], (err: any) => {
-        if (err) {
-          console.error('Error deleting messages:', err);
-          reject(err);
-          return;
-        }
+      try {
+        // Delete messages first
+        const initialMessageCount = messages.length;
+        messages = messages.filter(m => m.session_id !== sessionId);
         
-        // Then delete the session
-        const deleteSession = `DELETE FROM chat_sessions WHERE id = ?`;
-        this.db.run(deleteSession, [sessionId], function(err: any) {
-          if (err) {
-            console.error('Error deleting chat session:', err);
-            reject(err);
-          } else {
-            console.log('Chat session deleted:', sessionId);
-            resolve(this.changes);
-          }
-        });
-      });
+        // Delete session
+        const initialSessionCount = chatSessions.length;
+        chatSessions = chatSessions.filter(s => s.id !== sessionId);
+        
+        const changes = initialSessionCount - chatSessions.length;
+        console.log('Chat session deleted:', sessionId);
+        resolve(changes);
+      } catch (err) {
+        console.error('Error deleting chat session:', err);
+        reject(err);
+      }
     });
   }
 };
