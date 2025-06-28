@@ -47,9 +47,9 @@ const UserManagement = () => {
   const loadUsers = async () => {
     try {
       console.log('CLIENT: Loading users...');
-      const users = await database.getAllUsers();
-      console.log('CLIENT: Loaded users:', users);
-      setUsers(users);
+      const usersData = await database.getAllUsers() as User[];
+      console.log('CLIENT: Loaded users:', usersData);
+      setUsers(usersData);
     } catch (error) {
       console.error('CLIENT: Error loading users:', error);
       toast({

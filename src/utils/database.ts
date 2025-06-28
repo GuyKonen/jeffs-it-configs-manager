@@ -88,7 +88,7 @@ export const database = {
     });
   },
 
-  async getAllUsers() {
+  async getAllUsers(): Promise<any[]> {
     return new Promise((resolve, reject) => {
       const sql = `
         SELECT id, username, email, role, is_active, totp_enabled, created_at FROM users
@@ -98,7 +98,7 @@ export const database = {
           console.error('Error getting all users:', err);
           reject(err);
         } else {
-          const users = rows.map((row: any) => ({
+          const users = (rows || []).map((row: any) => ({
             ...row,
             is_active: Boolean(row.is_active),
             totp_enabled: Boolean(row.totp_enabled)
@@ -109,7 +109,7 @@ export const database = {
     });
   },
 
-  async getUserByCredentials(username: string, password: string, totpToken?: string) {
+  async getUserByCredentials(username: string, password: string, totpToken?: string): Promise<any> {
     return new Promise((resolve, reject) => {
       const sql = `
         SELECT * FROM users WHERE username = ? AND password = ? AND is_active = 1

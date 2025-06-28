@@ -1,4 +1,5 @@
 
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { database } from '@/utils/database';
 
@@ -54,7 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signInWithUsername = async (username: string, password: string, totpToken?: string) => {
     try {
-      const foundUser = await database.getUserByCredentials(username, password, totpToken);
+      const foundUser: any = await database.getUserByCredentials(username, password, totpToken);
       
       if (!foundUser) {
         return { error: 'Invalid username or password' };
@@ -94,3 +95,4 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
+
