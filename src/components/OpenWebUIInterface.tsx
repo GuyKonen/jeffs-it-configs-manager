@@ -22,7 +22,7 @@ interface ChatSession {
   starred?: boolean;
 }
 
-type InterfaceMode = 'chat' | 'azure' | 'okta' | 'test';
+type InterfaceMode = 'chat' | 'azure' | 'okta' | 'intune' | 'test';
 
 const OpenWebUIInterface = () => {
   const { user } = useAuth();
@@ -139,6 +139,8 @@ const OpenWebUIInterface = () => {
         return `${baseUrl}/azure`;
       case 'okta':
         return `${baseUrl}/okta`;
+      case 'intune':
+        return `${baseUrl}/intune`;
       case 'test':
         return `${baseUrl}/test`;
       default:
@@ -307,6 +309,16 @@ const OpenWebUIInterface = () => {
               <span className="text-white text-xs font-bold">O</span>
             </div>
             Okta
+          </Button>
+          <Button
+            variant={interfaceMode === 'intune' ? 'default' : 'outline'}
+            onClick={() => setInterfaceMode('intune')}
+            className="flex items-center gap-2"
+          >
+            <div className="w-4 h-4 bg-purple-600 rounded flex items-center justify-center">
+              <span className="text-white text-xs font-bold">I</span>
+            </div>
+            Intune
           </Button>
           <Button
             variant={interfaceMode === 'test' ? 'default' : 'outline'}

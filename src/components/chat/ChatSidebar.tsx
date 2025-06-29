@@ -98,17 +98,17 @@ const ChatSidebar = ({
             {filteredSessions.map((session) => (
               <ContextMenu key={session.id}>
                 <ContextMenuTrigger asChild>
-                  <div className="relative group">
+                  <div className="relative group mb-1">
                     <Button
                       variant="ghost"
-                      className={`w-full justify-start p-3 mb-1 h-auto ${
+                      className={`w-full justify-start p-3 h-auto relative ${
                         currentSessionId === session.id 
                           ? 'bg-accent text-accent-foreground' 
                           : 'hover:bg-muted'
                       }`}
                       onClick={() => onSessionSelect(session.id)}
                     >
-                      <div className="flex flex-col items-start w-full">
+                      <div className="flex flex-col items-start w-full pr-8">
                         <div className="flex items-center gap-2 w-full">
                           <MessageSquare className="h-4 w-4 flex-shrink-0" />
                           {session.starred && <Star className="h-3 w-3 text-yellow-500 fill-current" />}
@@ -118,19 +118,19 @@ const ChatSidebar = ({
                           {session.timestamp.toLocaleDateString()}
                         </span>
                       </div>
-                    </Button>
-                    
-                    {/* Three dots button */}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // The context menu will handle the actions
-                      }}
-                    >
-                      <MoreHorizontal className="h-3 w-3" />
+                      
+                      {/* Three dots button - positioned absolutely and always visible */}
+                      <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+                        <div
+                          className="h-6 w-6 flex items-center justify-center rounded hover:bg-background/80 transition-colors cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                          }}
+                        >
+                          <MoreHorizontal className="h-3 w-3 text-muted-foreground" />
+                        </div>
+                      </div>
                     </Button>
                   </div>
                 </ContextMenuTrigger>
@@ -138,21 +138,21 @@ const ChatSidebar = ({
                 <ContextMenuContent className="w-48">
                   <ContextMenuItem 
                     onClick={() => onStarChat(session.id)}
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-2 cursor-pointer"
                   >
                     <Star className="h-4 w-4" />
                     {session.starred ? 'Unstar Chat' : 'Star Chat'}
                   </ContextMenuItem>
                   <ContextMenuItem 
                     onClick={() => onDownloadChat(session)}
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-2 cursor-pointer"
                   >
                     <Download className="h-4 w-4" />
                     Download Chat
                   </ContextMenuItem>
                   <ContextMenuItem 
                     onClick={() => onDeleteChat(session.id)}
-                    className="flex items-center gap-2 text-destructive"
+                    className="flex items-center gap-2 text-destructive cursor-pointer"
                   >
                     <Trash2 className="h-4 w-4" />
                     Delete Chat
