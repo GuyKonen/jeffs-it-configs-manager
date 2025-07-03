@@ -1,9 +1,11 @@
+
 import React from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Copy, RotateCcw, User, Send, Mic, Plus, Square } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
+import FormattedChatResponse from './FormattedChatResponse';
 
 interface Message {
   id: string;
@@ -100,11 +102,19 @@ const ChatWindow = ({ messages, onSendMessage, isLoading, lastUserMessage }: Cha
                         </span>
                       </div>
                       
-                      <div className="prose dark:prose-invert max-w-none">
-                        <p className="text-foreground whitespace-pre-wrap">
-                          {message.content}
-                        </p>
-                      </div>
+                      {/* Use FormattedChatResponse for assistant messages */}
+                      {message.type === 'assistant' ? (
+                        <FormattedChatResponse 
+                          content={message.content} 
+                          onSendMessage={onSendMessage}
+                        />
+                      ) : (
+                        <div className="prose dark:prose-invert max-w-none">
+                          <p className="text-foreground whitespace-pre-wrap">
+                            {message.content}
+                          </p>
+                        </div>
+                      )}
                       
                       {/* Message Actions - Only Copy and Regenerate */}
                       {message.type === 'assistant' && (
