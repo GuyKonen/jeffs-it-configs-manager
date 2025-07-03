@@ -24,6 +24,17 @@ interface ChatWindowProps {
 const ChatWindow = ({ messages, onSendMessage, isLoading, lastUserMessage }: ChatWindowProps) => {
   const [inputMessage, setInputMessage] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (scrollAreaRef.current) {
+      const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollContainer) {
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      }
+    }
+  }, [messages, isLoading]);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -62,7 +73,7 @@ const ChatWindow = ({ messages, onSendMessage, isLoading, lastUserMessage }: Cha
     <div className="h-full bg-background flex flex-col">
       {/* Chat Messages - Scrollable area */}
       <div className="flex-1 min-h-0">
-        <ScrollArea className="h-full">
+        <ScrollArea className="h-full" ref={scrollAreaRef}>
           <div className="max-w-4xl mx-auto p-4 pb-4">
             {messages.length === 0 ? (
               // Welcome Message (when no messages)
@@ -219,7 +230,7 @@ const ChatWindow = ({ messages, onSendMessage, isLoading, lastUserMessage }: Cha
                 <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
                 <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
               </div>
-              <span>AI is generating a response...</span>
+              <span>Sending to Jeff...</span>
             </div>
           )}
           

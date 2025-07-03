@@ -17,14 +17,14 @@ const FormattedChatResponse = ({ content, onSendMessage }: FormattedChatResponse
     const lines = text.split('\n');
     
     for (const line of lines) {
-      // Check for main headers (Status, Result, Suggested Next Actions, executed tool)
+      // Check for main headers (Status, Result, Suggested Next Actions, executed tool/tools)
       if (line.startsWith('Status:') || line.startsWith('Results:') || line.startsWith('Result:')) {
         if (currentSection) {
           sections[currentSection] = currentContent.trim();
         }
         currentSection = line.includes('Status:') ? 'status' : 'results';
         currentContent = line;
-      } else if (line.startsWith('executed tool:') || line.startsWith('Executed Tools:')) {
+      } else if (line.startsWith('executed tool:') || line.startsWith('executed tools:') || line.startsWith('Executed Tools:') || line.startsWith('Executed Tool:')) {
         if (currentSection) {
           sections[currentSection] = currentContent.trim();
         }

@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Search, MessageSquare, Plus, MoreHorizontal, Star, Download, Trash2 } from 'lucide-react';
 
 interface Message {
@@ -83,55 +83,78 @@ const ChatSidebar = ({
         ) : (
           <div className="p-2">
             {filteredSessions.map((session) => (
-              <ContextMenu key={session.id}>
-                <ContextMenuTrigger asChild>
-                  <div className="relative group mb-1">
-                    <div
-                      className={`w-full justify-start p-3 h-auto relative cursor-pointer rounded-md transition-colors ${
-                        currentSessionId === session.id 
-                          ? 'bg-accent text-accent-foreground' 
-                          : 'hover:bg-muted'
-                      }`}
-                      onClick={() => onSessionSelect(session.id)}
-                    >
-                      <div className="flex flex-col items-start w-full pr-8">
-                        <div className="flex items-center gap-2 w-full">
-                          <MessageSquare className="h-4 w-4 flex-shrink-0" />
-                          {session.starred && <Star className="h-3 w-3 text-yellow-500 fill-current" />}
-                          <span className="text-sm font-medium truncate flex-1">{session.title}</span>
-                        </div>
-                        <span className="text-xs text-muted-foreground ml-6">
-                          {session.timestamp.toLocaleDateString()}
-                        </span>
-                      </div>
+              <div key={session.id} className="relative group mb-1">
+                <div
+                  className={`w-full justify-start p-3 h-auto relative cursor-pointer rounded-md transition-colors ${
+                    currentSessionId === session.id 
+                      ? 'bg-accent text-accent-foreground' 
+                      : 'hover:bg-muted'
+                  }`}
+                  onClick={() => onSessionSelect(session.id)}
+                >
+                  <div className="flex flex-col items-start w-full pr-8">
+                    <div className="flex items-center gap-2 w-full">
+                      <MessageSquare className="h-4 w-4 flex-shrink-0" />
+                      {session.starred && <Star className="h-3 w-3 text-yellow-500 fill-current" />}
+                      <span className="text-sm font-medium truncate flex-1">{session.title}</span>
                     </div>
+                    <span className="text-xs text-muted-foreground ml-6">
+                      {session.timestamp.toLocaleDateString()}
+                    </span>
                   </div>
-                </ContextMenuTrigger>
+                </div>
                 
-                <ContextMenuContent className="w-48">
-                  <ContextMenuItem 
-                    onClick={() => onStarChat(session.id)}
-                    className="flex items-center gap-2 cursor-pointer"
-                  >
-                    <Star className="h-4 w-4" />
-                    {session.starred ? 'Unstar Chat' : 'Star Chat'}
-                  </ContextMenuItem>
-                  <ContextMenuItem 
-                    onClick={() => onDownloadChat(session)}
-                    className="flex items-center gap-2 cursor-pointer"
-                  >
-                    <Download className="h-4 w-4" />
-                    Download Chat
-                  </ContextMenuItem>
-                  <ContextMenuItem 
-                    onClick={() => onDeleteChat(session.id)}
-                    className="flex items-center gap-2 text-destructive cursor-pointer"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Delete Chat
-                  </ContextMenuItem>
-                </ContextMenuContent>
-              </ContextMenu>
+                {/* Options Button */}
+                <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-muted"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <MoreHorizontal className="h-3 w-3" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-48 p-1" align="end">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-start gap-2 h-8"
+                        onClick={() => {
+                          onStarChat(session.id);
+                        }}
+                      >
+                        <Star className="h-4 w-4" />
+                        {session.starred ? 'Unstar Chat' : 'Star Chat'}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-start gap-2 h-8"
+                        onClick={() => {
+                          onDownloadChat(session);
+                        }}
+                      >
+                        <Download className="h-4 w-4" />
+                        Download Chat
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-start gap-2 h-8 text-destructive hover:text-destructive"
+                        onClick={() => {
+                          onDeleteChat(session.id);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Delete Chat
+                      </Button>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
             ))}
           </div>
         )}
