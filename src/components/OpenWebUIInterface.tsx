@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Button } from '@/components/ui/button';
@@ -43,11 +42,6 @@ const OpenWebUIInterface = () => {
     activedirectory: null
   });
 
-  // Load chat sessions from database
-  useEffect(() => {
-    loadChatSessions();
-  }, [user]);
-
   // Handle interface mode changes - restore previous session or create new
   useEffect(() => {
     const previousSessionId = modeSessionIds[interfaceMode];
@@ -59,6 +53,11 @@ const OpenWebUIInterface = () => {
       handleNewChat();
     }
   }, [interfaceMode]);
+
+  // Load chat sessions from database
+  useEffect(() => {
+    loadChatSessions();
+  }, [user]);
 
   const loadChatSessions = async () => {
     if (!user) return;
@@ -253,7 +252,7 @@ const OpenWebUIInterface = () => {
         const endpoint = getEndpointUrl(interfaceMode);
         const payload = {
           message: content,
-          user: user.username || user.email || user.id,
+          user: user.username || user.id,
           session_id: sessionId,
           request_id: requestId
         };
