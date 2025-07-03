@@ -50,11 +50,11 @@ const ChatWindow = ({ messages, onSendMessage, isLoading, lastUserMessage }: Cha
   };
 
   return (
-    <div className="h-full bg-background flex flex-col relative">
-      {/* Chat Content */}
-      <div className="flex-1 relative min-h-0">
+    <div className="h-full bg-background flex flex-col">
+      {/* Chat Messages - Scrollable area */}
+      <div className="flex-1 min-h-0">
         <ScrollArea className="h-full">
-          <div className="max-w-4xl mx-auto p-4 pb-32">
+          <div className="max-w-4xl mx-auto p-4 pb-4">
             {messages.length === 0 ? (
               // Welcome Message (when no messages)
               <div className="text-center py-8">
@@ -128,89 +128,89 @@ const ChatWindow = ({ messages, onSendMessage, isLoading, lastUserMessage }: Cha
             )}
           </div>
         </ScrollArea>
+      </div>
 
-        {/* Fixed Input Area - positioned absolutely at bottom */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 bg-card border-t border-border">
-          <div className="max-w-4xl mx-auto">
-            <div className="relative">
-              <Textarea
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="How can I help you today?"
-                className="min-h-[60px] max-h-[200px] pr-16 pl-12 resize-none border-border bg-background focus:border-primary focus:ring-primary"
+      {/* Fixed Input Area - stays at bottom */}
+      <div className="flex-shrink-0 p-4 bg-card border-t border-border">
+        <div className="max-w-4xl mx-auto">
+          <div className="relative">
+            <Textarea
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="How can I help you today?"
+              className="min-h-[60px] max-h-[200px] pr-16 pl-12 resize-none border-border bg-background focus:border-primary focus:ring-primary"
+              disabled={isLoading}
+            />
+            
+            {/* Left side button */}
+            <div className="absolute left-3 bottom-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 hover:bg-muted"
                 disabled={isLoading}
-              />
-              
-              {/* Left side button */}
-              <div className="absolute left-3 bottom-3">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0 hover:bg-muted"
-                  disabled={isLoading}
-                >
-                  <Plus className="h-4 w-4 text-muted-foreground" />
-                </Button>
-              </div>
-              
-              {/* Right side buttons */}
-              <div className="absolute right-3 bottom-3 flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0 hover:bg-muted"
-                  disabled={isLoading}
-                >
-                  <Mic className="h-4 w-4 text-muted-foreground" />
-                </Button>
-                
-                {isLoading ? (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0 hover:bg-muted"
-                    onClick={handleStop}
-                  >
-                    <Square className="h-4 w-4 text-muted-foreground" />
-                  </Button>
-                ) : (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className={`h-8 w-8 p-0 ${
-                      inputMessage.trim() 
-                        ? 'text-primary hover:bg-muted' 
-                        : 'text-muted-foreground cursor-not-allowed'
-                    }`}
-                    onClick={handleSend}
-                    disabled={!inputMessage.trim()}
-                  >
-                    <Send className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
+              >
+                <Plus className="h-4 w-4 text-muted-foreground" />
+              </Button>
             </div>
             
-            {/* Status indicator */}
-            {isLoading && (
-              <div className="flex items-center gap-2 mt-3 text-sm text-muted-foreground">
-                <div className="flex space-x-1">
-                  <div className="w-2 h-2 bg-primary rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                  <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                </div>
-                <span>AI is generating a response...</span>
-              </div>
-            )}
-            
-            {/* Helper text */}
-            {!inputMessage.trim() && lastUserMessage && (
-              <div className="mt-2 text-xs text-muted-foreground">
-                Press ↑ to recall your last message
-              </div>
-            )}
+            {/* Right side buttons */}
+            <div className="absolute right-3 bottom-3 flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 hover:bg-muted"
+                disabled={isLoading}
+              >
+                <Mic className="h-4 w-4 text-muted-foreground" />
+              </Button>
+              
+              {isLoading ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 hover:bg-muted"
+                  onClick={handleStop}
+                >
+                  <Square className="h-4 w-4 text-muted-foreground" />
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={`h-8 w-8 p-0 ${
+                    inputMessage.trim() 
+                      ? 'text-primary hover:bg-muted' 
+                      : 'text-muted-foreground cursor-not-allowed'
+                  }`}
+                  onClick={handleSend}
+                  disabled={!inputMessage.trim()}
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </div>
+          
+          {/* Status indicator */}
+          {isLoading && (
+            <div className="flex items-center gap-2 mt-3 text-sm text-muted-foreground">
+              <div className="flex space-x-1">
+                <div className="w-2 h-2 bg-primary rounded-full animate-bounce"></div>
+                <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+              </div>
+              <span>AI is generating a response...</span>
+            </div>
+          )}
+          
+          {/* Helper text */}
+          {!inputMessage.trim() && lastUserMessage && (
+            <div className="mt-2 text-xs text-muted-foreground">
+              Press ↑ to recall your last message
+            </div>
+          )}
         </div>
       </div>
     </div>

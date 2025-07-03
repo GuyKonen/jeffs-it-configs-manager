@@ -22,7 +22,7 @@ interface ChatSession {
   starred?: boolean;
 }
 
-type InterfaceMode = 'chat' | 'azure' | 'okta' | 'intune' | 'test';
+type InterfaceMode = 'chat' | 'azure' | 'okta' | 'intune' | 'activedirectory';
 
 const OpenWebUIInterface = () => {
   const { user } = useAuth();
@@ -37,6 +37,11 @@ const OpenWebUIInterface = () => {
   useEffect(() => {
     loadChatSessions();
   }, [user]);
+
+  // Create new chat when switching interface modes
+  useEffect(() => {
+    handleNewChat();
+  }, [interfaceMode]);
 
   const loadChatSessions = async () => {
     if (!user) return;
@@ -141,8 +146,8 @@ const OpenWebUIInterface = () => {
         return `${baseUrl}/okta`;
       case 'intune':
         return `${baseUrl}/intune`;
-      case 'test':
-        return `${baseUrl}/test`;
+      case 'activedirectory':
+        return `${baseUrl}/activedirectory`;
       default:
         return `${baseUrl}/chat`;
     }
@@ -279,8 +284,8 @@ const OpenWebUIInterface = () => {
 
   return (
     <div className="h-screen bg-stone-50 flex flex-col">
-      {/* Interface Mode Buttons */}
-      <div className="bg-white border-b border-stone-200 p-4">
+      {/* Interface Mode Buttons - Fixed at top */}
+      <div className="bg-white border-b border-stone-200 p-4 flex-shrink-0">
         <div className="flex items-center justify-center space-x-2">
           <Button
             variant={interfaceMode === 'chat' ? 'default' : 'outline'}
@@ -321,20 +326,20 @@ const OpenWebUIInterface = () => {
             Intune
           </Button>
           <Button
-            variant={interfaceMode === 'test' ? 'default' : 'outline'}
-            onClick={() => setInterfaceMode('test')}
+            variant={interfaceMode === 'activedirectory' ? 'default' : 'outline'}
+            onClick={() => setInterfaceMode('activedirectory')}
             className="flex items-center gap-2"
           >
-            <div className="w-4 h-4 bg-green-600 rounded flex items-center justify-center">
-              <span className="text-white text-xs font-bold">T</span>
+            <div className="w-4 h-4 bg-green-700 rounded flex items-center justify-center">
+              <span className="text-white text-xs font-bold">AD</span>
             </div>
-            Test
+            Active Directory
           </Button>
         </div>
       </div>
 
-      {/* Chat Interface */}
-      <div className="flex-1">
+      {/* Chat Interface - Fixed height with internal scrolling */}
+      <div className="flex-1 min-h-0">
         <ResizablePanelGroup direction="horizontal" className="h-full">
           <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
             <div className="h-full bg-white border-r border-stone-200 flex flex-col">

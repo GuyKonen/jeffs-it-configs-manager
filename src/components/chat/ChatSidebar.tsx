@@ -99,9 +99,8 @@ const ChatSidebar = ({
               <ContextMenu key={session.id}>
                 <ContextMenuTrigger asChild>
                   <div className="relative group mb-1">
-                    <Button
-                      variant="ghost"
-                      className={`w-full justify-start p-3 h-auto relative ${
+                    <div
+                      className={`w-full justify-start p-3 h-auto relative cursor-pointer rounded-md transition-colors ${
                         currentSessionId === session.id 
                           ? 'bg-accent text-accent-foreground' 
                           : 'hover:bg-muted'
@@ -119,19 +118,23 @@ const ChatSidebar = ({
                         </span>
                       </div>
                       
-                      {/* Three dots button - positioned absolutely and always visible */}
-                      <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
-                        <div
-                          className="h-6 w-6 flex items-center justify-center rounded hover:bg-background/80 transition-colors cursor-pointer"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                          }}
+                      {/* Three dots button - positioned absolutely and clickable */}
+                      <div 
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 z-10"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                        }}
+                      >
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 hover:bg-background/80 transition-colors"
                         >
                           <MoreHorizontal className="h-3 w-3 text-muted-foreground" />
-                        </div>
+                        </Button>
                       </div>
-                    </Button>
+                    </div>
                   </div>
                 </ContextMenuTrigger>
                 
