@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Button } from '@/components/ui/button';
@@ -32,15 +33,31 @@ const OpenWebUIInterface = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [interfaceMode, setInterfaceMode] = useState<InterfaceMode>('chat');
   const [lastUserMessage, setLastUserMessage] = useState<string>('');
+  
+  // Store session IDs per interface mode to restore previous chats
+  const [modeSessionIds, setModeSessionIds] = useState<Record<InterfaceMode, string | null>>({
+    chat: null,
+    azure: null,
+    okta: null,
+    intune: null,
+    activedirectory: null
+  });
 
   // Load chat sessions from database
   useEffect(() => {
     loadChatSessions();
   }, [user]);
 
-  // Create new chat when switching interface modes
+  // Handle interface mode changes - restore previous session or create new
   useEffect(() => {
-    handleNewChat();
+    const previousSessionId = modeSessionIds[interfaceMode];
+    if (previousSessionId) {
+      // Restore previous session for this mode
+      handleSessionSelect(previousSessionId);
+    } else {
+      // Create new chat for this mode
+      handleNewChat();
+    }
   }, [interfaceMode]);
 
   const loadChatSessions = async () => {
@@ -82,6 +99,12 @@ const OpenWebUIInterface = () => {
     console.log('Starting new chat');
     setCurrentSessionId(null);
     setCurrentMessages([]);
+    
+    // Update the mode session tracking
+    setModeSessionIds(prev => ({
+      ...prev,
+      [interfaceMode]: null
+    }));
   };
 
   const handleSessionSelect = (sessionId: string) => {
@@ -90,6 +113,12 @@ const OpenWebUIInterface = () => {
     if (session) {
       setCurrentSessionId(sessionId);
       setCurrentMessages(session.messages);
+      
+      // Update the mode session tracking
+      setModeSessionIds(prev => ({
+        ...prev,
+        [interfaceMode]: sessionId
+      }));
     }
   };
 
@@ -128,6 +157,12 @@ const OpenWebUIInterface = () => {
       if (currentSessionId === sessionId) {
         setCurrentSessionId(null);
         setCurrentMessages([]);
+        
+        // Clear from mode session tracking
+        setModeSessionIds(prev => ({
+          ...prev,
+          [interfaceMode]: null
+        }));
       }
       await loadChatSessions();
     } catch (error) {
@@ -153,12 +188,16 @@ const OpenWebUIInterface = () => {
     }
   };
 
+  const generateRequestId = () => {
+    return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  };
+
   const handleSendMessage = async (content: string) => {
     if (!user) return;
 
     console.log('Sending message:', content);
     setIsLoading(true);
-    setLastUserMessage(content); // Store the last user message
+    setLastUserMessage(content);
 
     try {
       let sessionId = currentSessionId;
@@ -176,6 +215,13 @@ const OpenWebUIInterface = () => {
         
         await database.createChatSession(newSession);
         setCurrentSessionId(sessionId);
+        
+        // Update the mode session tracking
+        setModeSessionIds(prev => ({
+          ...prev,
+          [interfaceMode]: sessionId
+        }));
+        
         console.log('Created new session:', sessionId);
       }
 
@@ -199,18 +245,27 @@ const OpenWebUIInterface = () => {
         timestamp: userMessage.timestamp.toISOString()
       });
 
-      // Send to the appropriate endpoint based on current mode
+      // Generate request ID for this specific message
+      const requestId = generateRequestId();
+
+      // Send to the appropriate endpoint with enhanced payload
       try {
         const endpoint = getEndpointUrl(interfaceMode);
-        console.log(`Sending to ${endpoint}:`, { message: content });
+        const payload = {
+          message: content,
+          user: user.username || user.email || user.id,
+          session_id: sessionId,
+          request_id: requestId
+        };
+        
+        console.log(`Sending to ${endpoint}:`, payload);
+        
         const response = await fetch(endpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            message: content
-          }),
+          body: JSON.stringify(payload),
         });
 
         if (!response.ok) {
@@ -283,9 +338,9 @@ const OpenWebUIInterface = () => {
   };
 
   return (
-    <div className="h-screen bg-stone-50 flex flex-col">
+    <div className="h-screen bg-stone-50 flex flex-col overflow-hidden">
       {/* Interface Mode Buttons - Fixed at top */}
-      <div className="bg-white border-b border-stone-200 p-4 flex-shrink-0">
+      <div className="bg-white border-b border-stone-200 p-3 flex-shrink-0">
         <div className="flex items-center justify-center space-x-2">
           <Button
             variant={interfaceMode === 'chat' ? 'default' : 'outline'}
@@ -338,36 +393,32 @@ const OpenWebUIInterface = () => {
         </div>
       </div>
 
-      {/* Chat Interface - Fixed height with internal scrolling */}
-      <div className="flex-1 min-h-0">
-        <ResizablePanelGroup direction="horizontal" className="h-full">
-          <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
-            <div className="h-full bg-white border-r border-stone-200 flex flex-col">
-              <ChatSidebar
-                onNewChat={handleNewChat}
-                sessions={sessions}
-                currentSessionId={currentSessionId}
-                onSessionSelect={handleSessionSelect}
-                onStarChat={handleStarChat}
-                onDownloadChat={handleDownloadChat}
-                onDeleteChat={handleDeleteChat}
-              />
-            </div>
-          </ResizablePanel>
+      {/* Fixed Chat Interface */}
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <div className="h-full flex">
+          {/* Sidebar - Fixed width, no scrolling */}
+          <div className="w-80 bg-white border-r border-stone-200 flex-shrink-0">
+            <ChatSidebar
+              onNewChat={handleNewChat}
+              sessions={sessions}
+              currentSessionId={currentSessionId}
+              onSessionSelect={handleSessionSelect}
+              onStarChat={handleStarChat}
+              onDownloadChat={handleDownloadChat}
+              onDeleteChat={handleDeleteChat}
+            />
+          </div>
           
-          <ResizableHandle withHandle />
-          
-          <ResizablePanel defaultSize={80}>
-            <div className="h-full bg-white">
-              <ChatWindow
-                messages={currentMessages}
-                onSendMessage={handleSendMessage}
-                isLoading={isLoading}
-                lastUserMessage={lastUserMessage}
-              />
-            </div>
-          </ResizablePanel>
-        </ResizablePanelGroup>
+          {/* Chat Window - Takes remaining space */}
+          <div className="flex-1 bg-white">
+            <ChatWindow
+              messages={currentMessages}
+              onSendMessage={handleSendMessage}
+              isLoading={isLoading}
+              lastUserMessage={lastUserMessage}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

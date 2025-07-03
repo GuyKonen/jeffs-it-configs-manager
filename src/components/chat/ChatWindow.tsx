@@ -1,10 +1,9 @@
-
 import React from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Copy, RotateCcw, User, Send, Mic, Plus, Square } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface Message {
   id: string;
@@ -22,6 +21,7 @@ interface ChatWindowProps {
 
 const ChatWindow = ({ messages, onSendMessage, isLoading, lastUserMessage }: ChatWindowProps) => {
   const [inputMessage, setInputMessage] = useState('');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -33,6 +33,13 @@ const ChatWindow = ({ messages, onSendMessage, isLoading, lastUserMessage }: Cha
     const messageToSend = inputMessage.trim();
     setInputMessage('');
     await onSendMessage(messageToSend);
+    
+    // Keep focus on the textarea after sending
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+      }
+    }, 100);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -135,6 +142,7 @@ const ChatWindow = ({ messages, onSendMessage, isLoading, lastUserMessage }: Cha
         <div className="max-w-4xl mx-auto">
           <div className="relative">
             <Textarea
+              ref={textareaRef}
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               onKeyDown={handleKeyDown}

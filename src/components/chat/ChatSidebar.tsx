@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
 import { Search, MessageSquare, Plus, MoreHorizontal, Star, Download, Trash2 } from 'lucide-react';
@@ -59,18 +58,6 @@ const ChatSidebar = ({
           <Plus className="h-4 w-4" />
           Start New Chat
         </Button>
-        
-        {/* Model Selection */}
-        <Select defaultValue="azure">
-          <SelectTrigger className="w-full bg-muted border-border">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="azure">Azure</SelectItem>
-            <SelectItem value="gpt-4">GPT-4</SelectItem>
-            <SelectItem value="claude-3">Claude 3</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
       {/* Search */}
@@ -116,23 +103,6 @@ const ChatSidebar = ({
                         <span className="text-xs text-muted-foreground ml-6">
                           {session.timestamp.toLocaleDateString()}
                         </span>
-                      </div>
-                      
-                      {/* Three dots button - positioned absolutely and clickable */}
-                      <div 
-                        className="absolute right-2 top-1/2 transform -translate-y-1/2 z-10"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          e.preventDefault();
-                        }}
-                      >
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0 hover:bg-background/80 transition-colors"
-                        >
-                          <MoreHorizontal className="h-3 w-3 text-muted-foreground" />
-                        </Button>
                       </div>
                     </div>
                   </div>
