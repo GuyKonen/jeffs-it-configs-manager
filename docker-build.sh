@@ -3,8 +3,8 @@
 
 echo "Building JeffFromIT Docker containers..."
 
-# Stop existing containers
-docker-compose down
+# Stop and remove existing containers
+docker-compose down --volumes --remove-orphans
 
 # Create data directory for SQLite
 mkdir -p ./data
@@ -21,10 +21,15 @@ echo "Backend API: http://localhost:3001"
 echo "Full app (with proxy): http://localhost:80"
 
 # Wait a moment for containers to start
-sleep 5
+sleep 10
 
 # Show running containers
 docker-compose ps
+
+# Test backend connectivity
+echo ""
+echo "Testing backend connectivity..."
+curl -f http://localhost:3001/api/users 2>/dev/null && echo "✓ Backend API is responding" || echo "✗ Backend API is not responding"
 
 # Show logs if there are issues
 echo ""

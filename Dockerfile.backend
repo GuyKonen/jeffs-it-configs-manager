@@ -3,13 +3,21 @@
 FROM node:18-alpine
 
 WORKDIR /app
+
+# Copy package files
 COPY server/package*.json ./
+
+# Install dependencies
 RUN npm ci --only=production
 
+# Copy server files
 COPY server/ .
 
 # Create directory for SQLite database
 RUN mkdir -p /app/data
+
+# Install wget for healthcheck
+RUN apk add --no-cache wget
 
 EXPOSE 3001
 CMD ["npm", "start"]

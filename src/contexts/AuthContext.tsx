@@ -1,7 +1,5 @@
 
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { database } from '@/utils/database';
 
 interface LocalUser {
   id: string;
@@ -27,24 +25,32 @@ export const useAuth = () => {
   return context;
 };
 
+// Get API URL from environment or use default
+const getApiUrl = () => {
+  // In Docker, the backend service is accessible via internal network
+  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    // If accessing via localhost, use the exposed port
+    return 'http://localhost:3001';
+  }
+  // If accessing via Docker network or nginx proxy, use the proxy
+  return '/api';
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<LocalUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Initialize database and check for local auth
+    // Check for local auth in localStorage (for session persistence)
     const initializeAuth = async () => {
       try {
-        await database.init();
-        
-        // Check for local auth in localStorage (for session persistence)
         const localAuth = localStorage.getItem('local_auth');
         if (localAuth) {
           const userData = JSON.parse(localAuth);
           setUser(userData);
         }
       } catch (error) {
-        console.error('Failed to initialize database:', error);
+        console.error('Failed to initialize auth:', error);
       } finally {
         setLoading(false);
       }
@@ -55,17 +61,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signInWithUsername = async (username: string, password: string, totpToken?: string) => {
     try {
-      const foundUser: any = await database.getUserByCredentials(username, password, totpToken);
+      const apiUrl = getApiUrl();
+      console.log('Making auth request to:', `${apiUrl}/auth/login`);
       
-      if (!foundUser) {
-        return { error: 'Invalid username or password' };
+      const response = await fetch(`${apiUrl}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username,
+          password,
+          totp_token: totpToken
+        }),
+      });
+
+      const data = await response.json();
+      console.log('Auth response:', data);
+
+      if (!response.ok) {
+        if (data.requires_totp) {
+          return { requiresTotp: true };
+        }
+        return { error: data.error || 'Authentication failed' };
       }
 
       const userData = {
-        id: foundUser.id,
-        username: foundUser.username,
-        role: foundUser.role,
-        totp_enabled: foundUser.totp_enabled
+        id: data.id,
+        username: data.username,
+        role: data.role,
+        totp_enabled: data.totp_enabled
       };
 
       localStorage.setItem('local_auth', JSON.stringify(userData));
@@ -73,11 +98,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       return {};
     } catch (error: any) {
-      console.error('Local auth error:', error);
-      if (error.message === 'TOTP_REQUIRED') {
-        return { requiresTotp: true };
-      }
-      return { error: 'Authentication failed' };
+      console.error('Auth request error:', error);
+      return { error: 'Network error - could not connect' };
     }
   };
 
@@ -95,4 +117,3 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
-
