@@ -1,27 +1,11 @@
+
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, Users, MessageSquare, TestTube } from "lucide-react";
-import ConfigurationTabs from "@/components/ConfigurationTabs";
-import UserManagement from "@/components/UserManagement";
-import ChatWindow from "@/components/chat/ChatWindow";
-import ConnectionTest from "@/components/ConnectionTest";
-import { useState } from "react";
-
-interface Message {
-  id: string;
-  type: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-}
+import OpenWebUIInterface from "@/components/OpenWebUIInterface";
 
 const Index = () => {
   const { user, loading, signOut } = useAuth();
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [lastUserMessage, setLastUserMessage] = useState<string>();
 
   if (loading) {
     return (
@@ -34,39 +18,6 @@ const Index = () => {
   if (!user) {
     return <Navigate to="/auth" replace />;
   }
-
-  const handleSendMessage = async (content: string) => {
-    setIsLoading(true);
-    setLastUserMessage(content);
-    
-    // Add user message
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      type: 'user',
-      content,
-      timestamp: new Date()
-    };
-    
-    setMessages(prev => [...prev, userMessage]);
-    
-    try {
-      // Simulate AI response (replace with actual API call)
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        type: 'assistant',
-        content: "I'm a placeholder AI response. Please implement the actual chat functionality with your backend.",
-        timestamp: new Date()
-      };
-      
-      setMessages(prev => [...prev, aiMessage]);
-    } catch (error) {
-      console.error('Error sending message:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -88,83 +39,9 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Tabs defaultValue="chat" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="chat" className="flex items-center space-x-2">
-              <MessageSquare className="h-4 w-4" />
-              <span>AI Chat</span>
-            </TabsTrigger>
-            <TabsTrigger value="config" className="flex items-center space-x-2">
-              <Settings className="h-4 w-4" />
-              <span>Configuration</span>
-            </TabsTrigger>
-            {user.role === 'admin' && (
-              <TabsTrigger value="users" className="flex items-center space-x-2">
-                <Users className="h-4 w-4" />
-                <span>User Management</span>
-              </TabsTrigger>
-            )}
-            <TabsTrigger value="test" className="flex items-center space-x-2">
-              <TestTube className="h-4 w-4" />
-              <span>Connection Test</span>
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="chat" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>AI Assistant</CardTitle>
-                <CardDescription>
-                  Chat with your AI assistant for IT support and automation tasks
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ChatWindow 
-                  messages={messages}
-                  onSendMessage={handleSendMessage}
-                  isLoading={isLoading}
-                  lastUserMessage={lastUserMessage}
-                />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="config" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>System Configuration</CardTitle>
-                <CardDescription>
-                  Configure integrations and environment settings for your IT automation
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ConfigurationTabs />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {user.role === 'admin' && (
-            <TabsContent value="users" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>User Management</CardTitle>
-                  <CardDescription>
-                    Manage user accounts and permissions
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <UserManagement />
-                </CardContent>
-              </Card>
-            </TabsContent>
-          )}
-
-          <TabsContent value="test" className="space-y-6">
-            <ConnectionTest />
-          </TabsContent>
-        </Tabs>
+      {/* Main OpenWebUI Interface */}
+      <div className="h-[calc(100vh-80px)]">
+        <OpenWebUIInterface />
       </div>
     </div>
   );
