@@ -7,16 +7,33 @@ import ChatSidebar from './chat/ChatSidebar';
 import ConfigurationTabs from './ConfigurationTabs';
 import UserManagement from './UserManagement';
 
+interface Message {
+  id: string;
+  type: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+}
+
+interface ChatSession {
+  id: string;
+  title: string;
+  messages: Message[];
+  timestamp: Date;
+  starred?: boolean;
+}
+
 const OpenWebUIInterface = () => {
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [lastUserMessage, setLastUserMessage] = useState('');
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 
   const handleSendMessage = async (message: string) => {
     setIsLoading(true);
     setLastUserMessage(message);
     
-    const userMessage = {
+    const userMessage: Message = {
       id: Date.now().toString(),
       type: 'user' as const,
       content: message,
@@ -40,7 +57,7 @@ const OpenWebUIInterface = () => {
       
       const data = await response.json();
       
-      const assistantMessage = {
+      const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'assistant' as const,
         content: data.response || 'No response received',
@@ -50,7 +67,7 @@ const OpenWebUIInterface = () => {
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
       console.error('Error sending message:', error);
-      const errorMessage = {
+      const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'assistant' as const,
         content: 'Sorry, there was an error processing your request.',
@@ -59,6 +76,52 @@ const OpenWebUIInterface = () => {
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleNewChat = () => {
+    const newSession: ChatSession = {
+      id: Date.now().toString(),
+      title: 'New Chat',
+      messages: [],
+      timestamp: new Date()
+    };
+    setSessions(prev => [newSession, ...prev]);
+    setCurrentSessionId(newSession.id);
+    setMessages([]);
+  };
+
+  const handleSessionSelect = (sessionId: string) => {
+    const session = sessions.find(s => s.id === sessionId);
+    if (session) {
+      setCurrentSessionId(sessionId);
+      setMessages(session.messages);
+    }
+  };
+
+  const handleStarChat = (sessionId: string) => {
+    setSessions(prev => prev.map(session => 
+      session.id === sessionId 
+        ? { ...session, starred: !session.starred }
+        : session
+    ));
+  };
+
+  const handleDownloadChat = (session: ChatSession) => {
+    const dataStr = JSON.stringify(session, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    const exportFileDefaultName = `chat-${session.title}-${new Date().toISOString().split('T')[0]}.json`;
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+  };
+
+  const handleDeleteChat = (sessionId: string) => {
+    setSessions(prev => prev.filter(session => session.id !== sessionId));
+    if (currentSessionId === sessionId) {
+      setCurrentSessionId(null);
+      setMessages([]);
     }
   };
 
@@ -86,7 +149,15 @@ const OpenWebUIInterface = () => {
           
           <div className="flex-1 overflow-hidden">
             <TabsContent value="chat" className="m-0 h-full">
-              <ChatSidebar />
+              <ChatSidebar 
+                onNewChat={handleNewChat}
+                sessions={sessions}
+                currentSessionId={currentSessionId}
+                onSessionSelect={handleSessionSelect}
+                onStarChat={handleStarChat}
+                onDownloadChat={handleDownloadChat}
+                onDeleteChat={handleDeleteChat}
+              />
             </TabsContent>
             <TabsContent value="config" className="m-0 h-full p-4">
               <div className="text-sm text-slate-600">
