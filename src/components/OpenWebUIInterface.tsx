@@ -1,424 +1,163 @@
-import React, { useState, useEffect } from 'react';
-import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
-import { Button } from '@/components/ui/button';
-import { MessageSquare, Shield } from 'lucide-react';
-import ChatSidebar from '@/components/chat/ChatSidebar';
-import ChatWindow from '@/components/chat/ChatWindow';
-import { useAuth } from '@/contexts/AuthContext';
-import { database } from '@/utils/database';
 
-interface Message {
-  id: string;
-  type: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-}
-
-interface ChatSession {
-  id: string;
-  title: string;
-  messages: Message[];
-  timestamp: Date;
-  starred?: boolean;
-}
-
-type InterfaceMode = 'chat' | 'azure' | 'okta' | 'intune' | 'activedirectory';
+import React, { useState } from 'react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MessageSquare, Settings, Users, Cloud, Shield, Smartphone } from 'lucide-react';
+import ChatWindow from './chat/ChatWindow';
+import ChatSidebar from './chat/ChatSidebar';
+import ConfigurationTabs from './ConfigurationTabs';
+import UserManagement from './UserManagement';
 
 const OpenWebUIInterface = () => {
-  const { user } = useAuth();
-  const [sessions, setSessions] = useState<ChatSession[]>([]);
-  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-  const [currentMessages, setCurrentMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [interfaceMode, setInterfaceMode] = useState<InterfaceMode>('chat');
-  const [lastUserMessage, setLastUserMessage] = useState<string>('');
-  
-  // Store session IDs per interface mode to restore previous chats
-  const [modeSessionIds, setModeSessionIds] = useState<Record<InterfaceMode, string | null>>({
-    chat: null,
-    azure: null,
-    okta: null,
-    intune: null,
-    activedirectory: null
-  });
+  const [lastUserMessage, setLastUserMessage] = useState('');
 
-  // Handle interface mode changes - restore previous session or create new
-  useEffect(() => {
-    const previousSessionId = modeSessionIds[interfaceMode];
-    if (previousSessionId) {
-      // Restore previous session for this mode
-      handleSessionSelect(previousSessionId);
-    } else {
-      // Create new chat for this mode
-      handleNewChat();
-    }
-  }, [interfaceMode]);
-
-  // Load chat sessions from database
-  useEffect(() => {
-    loadChatSessions();
-  }, [user]);
-
-  const loadChatSessions = async () => {
-    if (!user) return;
-
-    try {
-      console.log('Loading chat sessions for user:', user.id);
-      
-      const dbSessions = await database.getChatSessions(user.id) as any[];
-      const sessionsWithMessages = await Promise.all((dbSessions || []).map(async session => {
-        const messages = ((await database.getMessages(session.id)) as any[]).map(msg => ({
-          ...msg,
-          timestamp: new Date(msg.timestamp)
-        }));
-        
-        return {
-          id: session.id,
-          title: session.title,
-          messages,
-          timestamp: new Date(session.timestamp),
-          starred: session.starred || false
-        };
-      }));
-      
-      // Sort sessions: starred first, then by timestamp
-      sessionsWithMessages.sort((a, b) => {
-        if (a.starred && !b.starred) return -1;
-        if (!a.starred && b.starred) return 1;
-        return b.timestamp.getTime() - a.timestamp.getTime();
-      });
-      
-      setSessions(sessionsWithMessages);
-    } catch (error) {
-      console.error('Error loading chat sessions:', error);
-    }
-  };
-
-  const handleNewChat = () => {
-    console.log('Starting new chat');
-    setCurrentSessionId(null);
-    setCurrentMessages([]);
+  const handleSendMessage = async (message: string) => {
+    setIsLoading(true);
+    setLastUserMessage(message);
     
-    // Update the mode session tracking
-    setModeSessionIds(prev => ({
-      ...prev,
-      [interfaceMode]: null
-    }));
-  };
-
-  const handleSessionSelect = (sessionId: string) => {
-    console.log('Selecting session:', sessionId);
-    const session = sessions.find(s => s.id === sessionId);
-    if (session) {
-      setCurrentSessionId(sessionId);
-      setCurrentMessages(session.messages);
-      
-      // Update the mode session tracking
-      setModeSessionIds(prev => ({
-        ...prev,
-        [interfaceMode]: sessionId
-      }));
-    }
-  };
-
-  const handleStarChat = async (sessionId: string) => {
-    try {
-      await database.starChatSession(sessionId);
-      await loadChatSessions();
-    } catch (error) {
-      console.error('Error starring chat session:', error);
-    }
-  };
-
-  const handleDownloadChat = (session: ChatSession) => {
-    const chatData = {
-      title: session.title,
-      timestamp: session.timestamp,
-      messages: session.messages.map(msg => ({
-        type: msg.type,
-        content: msg.content,
-        timestamp: msg.timestamp
-      }))
+    const userMessage = {
+      id: Date.now().toString(),
+      type: 'user' as const,
+      content: message,
+      timestamp: new Date().toISOString()
     };
     
-    const blob = new Blob([JSON.stringify(chatData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `chat-${session.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleDeleteChat = async (sessionId: string) => {
+    setMessages(prev => [...prev, userMessage]);
+    
     try {
-      await database.deleteChatSession(sessionId);
-      if (currentSessionId === sessionId) {
-        setCurrentSessionId(null);
-        setCurrentMessages([]);
-        
-        // Clear from mode session tracking
-        setModeSessionIds(prev => ({
-          ...prev,
-          [interfaceMode]: null
-        }));
-      }
-      await loadChatSessions();
-    } catch (error) {
-      console.error('Error deleting chat session:', error);
-    }
-  };
-
-  const getEndpointUrl = (mode: InterfaceMode): string => {
-    const baseUrl = 'http://localhost:8000';
-    switch (mode) {
-      case 'chat':
-        return `${baseUrl}/chat`;
-      case 'azure':
-        return `${baseUrl}/azure`;
-      case 'okta':
-        return `${baseUrl}/okta`;
-      case 'intune':
-        return `${baseUrl}/intune`;
-      case 'activedirectory':
-        return `${baseUrl}/activedirectory`;
-      default:
-        return `${baseUrl}/chat`;
-    }
-  };
-
-  const generateRequestId = () => {
-    return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  };
-
-  const handleSendMessage = async (content: string) => {
-    if (!user) return;
-
-    console.log('Sending message:', content);
-    setIsLoading(true);
-    setLastUserMessage(content);
-
-    try {
-      let sessionId = currentSessionId;
-
-      // Create new session if none exists
-      if (!sessionId) {
-        console.log('Creating new session');
-        sessionId = `session_${Date.now()}`;
-        const newSession = {
-          id: sessionId,
-          user_id: user.id,
-          title: content.substring(0, 50) + (content.length > 50 ? '...' : ''),
-          timestamp: new Date().toISOString()
-        };
-        
-        await database.createChatSession(newSession);
-        setCurrentSessionId(sessionId);
-        
-        // Update the mode session tracking
-        setModeSessionIds(prev => ({
-          ...prev,
-          [interfaceMode]: sessionId
-        }));
-        
-        console.log('Created new session:', sessionId);
-      }
-
-      // Add user message
-      const userMessage: Message = {
-        id: `msg_${Date.now()}`,
-        type: 'user',
-        content,
-        timestamp: new Date()
-      };
-
-      const newMessages = [...currentMessages, userMessage];
-      setCurrentMessages(newMessages);
-
-      // Save user message to database
-      await database.createMessage({
-        id: userMessage.id,
-        session_id: sessionId,
-        type: userMessage.type,
-        content: userMessage.content,
-        timestamp: userMessage.timestamp.toISOString()
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message }),
       });
-
-      // Generate request ID for this specific message
-      const requestId = generateRequestId();
-
-      // Send to the appropriate endpoint with enhanced payload
-      try {
-        const endpoint = getEndpointUrl(interfaceMode);
-        const payload = {
-          message: content,
-          user: user.username || user.id,
-          session_id: sessionId,
-          request_id: requestId
-        };
-        
-        console.log(`Sending to ${endpoint}:`, payload);
-        
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        console.log('Response from service:', data);
-        
-        // Extract the output from the response structure
-        let aiResponseContent = 'Sorry, I encountered an error processing your request.';
-        if (data.status === 'success' && data.output) {
-          aiResponseContent = data.output;
-        } else if (data.response) {
-          aiResponseContent = data.response;
-        }
-        
-        // Add AI response
-        const aiMessage: Message = {
-          id: `msg_${Date.now() + 1}`,
-          type: 'assistant',
-          content: aiResponseContent,
-          timestamp: new Date()
-        };
-
-        const finalMessages = [...newMessages, aiMessage];
-        setCurrentMessages(finalMessages);
-
-        // Save AI message to database
-        await database.createMessage({
-          id: aiMessage.id,
-          session_id: sessionId,
-          type: aiMessage.type,
-          content: aiMessage.content,
-          timestamp: aiMessage.timestamp.toISOString()
-        });
-
-      } catch (apiError) {
-        console.error('API Error:', apiError);
-        
-        // Add error message
-        const errorMessage: Message = {
-          id: `msg_${Date.now() + 1}`,
-          type: 'assistant',
-          content: `Sorry, I'm having trouble connecting to the ${interfaceMode} service. Please make sure the service is running on localhost:8000.`,
-          timestamp: new Date()
-        };
-
-        const finalMessages = [...newMessages, errorMessage];
-        setCurrentMessages(finalMessages);
-
-        // Save error message to database
-        await database.createMessage({
-          id: errorMessage.id,
-          session_id: sessionId,
-          type: errorMessage.type,
-          content: errorMessage.content,
-          timestamp: errorMessage.timestamp.toISOString()
-        });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-
-      // Reload sessions to update the sidebar
-      await loadChatSessions();
-
+      
+      const data = await response.json();
+      
+      const assistantMessage = {
+        id: (Date.now() + 1).toString(),
+        type: 'assistant' as const,
+        content: data.response || 'No response received',
+        timestamp: new Date().toISOString()
+      };
+      
+      setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
-      console.error('Error in handleSendMessage:', error);
+      console.error('Error sending message:', error);
+      const errorMessage = {
+        id: (Date.now() + 1).toString(),
+        type: 'assistant' as const,
+        content: 'Sorry, there was an error processing your request.',
+        timestamp: new Date().toISOString()
+      };
+      setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="h-screen bg-stone-50 flex flex-col overflow-hidden">
-      {/* Interface Mode Buttons - Fixed at top */}
-      <div className="bg-white border-b border-stone-200 p-3 flex-shrink-0">
-        <div className="flex items-center justify-center space-x-2">
-          <Button
-            variant={interfaceMode === 'chat' ? 'default' : 'outline'}
-            onClick={() => setInterfaceMode('chat')}
-            className="flex items-center gap-2"
-          >
-            <MessageSquare className="h-4 w-4" />
-            Chat
-          </Button>
-          <Button
-            variant={interfaceMode === 'azure' ? 'default' : 'outline'}             
-            onClick={() => setInterfaceMode('azure')}
-            className="flex items-center gap-2"
-          >
-            <div className="w-4 h-4 bg-blue-600 rounded-sm flex items-center justify-center">
-              <span className="text-white text-xs font-bold">A</span>
-            </div>
-            Azure
-          </Button>
-          <Button
-            variant={interfaceMode === 'okta' ? 'default' : 'outline'}
-            onClick={() => setInterfaceMode('okta')}
-            className="flex items-center gap-2"
-          >
-            <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
-              <span className="text-white text-xs font-bold">O</span>
-            </div>
-            Okta
-          </Button>
-          <Button
-            variant={interfaceMode === 'intune' ? 'default' : 'outline'}
-            onClick={() => setInterfaceMode('intune')}
-            className="flex items-center gap-2"
-          >
-            <div className="w-4 h-4 bg-purple-600 rounded flex items-center justify-center">
-              <span className="text-white text-xs font-bold">I</span>
-            </div>
-            Intune
-          </Button>
-          <Button
-            variant={interfaceMode === 'activedirectory' ? 'default' : 'outline'}
-            onClick={() => setInterfaceMode('activedirectory')}
-            className="flex items-center gap-2"
-          >
-            <div className="w-4 h-4 bg-green-700 rounded flex items-center justify-center">
-              <span className="text-white text-xs font-bold">AD</span>
-            </div>
-            Active Directory
-          </Button>
-        </div>
-      </div>
-
-      {/* Fixed Chat Interface */}
-      <div className="flex-1 min-h-0 overflow-hidden">
-        <div className="h-full flex">
-          {/* Sidebar - Fixed width, no scrolling */}
-          <div className="w-80 bg-white border-r border-stone-200 flex-shrink-0">
-            <ChatSidebar
-              onNewChat={handleNewChat}
-              sessions={sessions}
-              currentSessionId={currentSessionId}
-              onSessionSelect={handleSessionSelect}
-              onStarChat={handleStarChat}
-              onDownloadChat={handleDownloadChat}
-              onDeleteChat={handleDeleteChat}
-            />
+    <div className="flex h-full bg-gradient-to-br from-slate-50 to-slate-100">
+      <Tabs defaultValue="chat" className="flex h-full w-full">
+        {/* Sidebar */}
+        <div className="w-80 bg-white border-r border-slate-200 flex flex-col">
+          <div className="p-4 border-b border-slate-200">
+            <TabsList className="grid w-full grid-cols-3 gap-1">
+              <TabsTrigger value="chat" className="flex items-center gap-2 text-xs">
+                <MessageSquare className="h-4 w-4" />
+                Chat
+              </TabsTrigger>
+              <TabsTrigger value="config" className="flex items-center gap-2 text-xs">
+                <Settings className="h-4 w-4" />
+                Config
+              </TabsTrigger>
+              <TabsTrigger value="users" className="flex items-center gap-2 text-xs">
+                <Users className="h-4 w-4" />
+                Users
+              </TabsTrigger>
+            </TabsList>
           </div>
           
-          {/* Chat Window - Takes remaining space */}
-          <div className="flex-1 bg-white">
-            <ChatWindow
-              messages={currentMessages}
-              onSendMessage={handleSendMessage}
-              isLoading={isLoading}
-              lastUserMessage={lastUserMessage}
-            />
+          <div className="flex-1 overflow-hidden">
+            <TabsContent value="chat" className="m-0 h-full">
+              <ChatSidebar />
+            </TabsContent>
+            <TabsContent value="config" className="m-0 h-full p-4">
+              <div className="text-sm text-slate-600">
+                Environment Configuration
+              </div>
+            </TabsContent>
+            <TabsContent value="users" className="m-0 h-full p-4">
+              <div className="text-sm text-slate-600">
+                User Management
+              </div>
+            </TabsContent>
           </div>
         </div>
-      </div>
+
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col">
+          <TabsContent value="chat" className="flex-1 m-0">
+            <div className="h-full flex flex-col">
+              {/* Service Selection Tabs */}
+              <div className="bg-white border-b border-slate-200 px-6 py-4">
+                <Tabs defaultValue="general" className="w-full">
+                  <TabsList className="grid w-full grid-cols-5">
+                    <TabsTrigger value="general" className="flex items-center gap-2">
+                      <MessageSquare className="h-4 w-4" />
+                      Chat
+                    </TabsTrigger>
+                    <TabsTrigger value="azure" className="flex items-center gap-2">
+                      <Cloud className="h-4 w-4" />
+                      Azure
+                    </TabsTrigger>
+                    <TabsTrigger value="okta" className="flex items-center gap-2">
+                      <Shield className="h-4 w-4" />
+                      Okta
+                    </TabsTrigger>
+                    <TabsTrigger value="intune" className="flex items-center gap-2">
+                      <Smartphone className="h-4 w-4" />
+                      Intune
+                    </TabsTrigger>
+                    <TabsTrigger value="activedirectory" className="flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      Active Directory
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+              
+              {/* Chat Interface */}
+              <div className="flex-1">
+                <ChatWindow 
+                  messages={messages}
+                  onSendMessage={handleSendMessage}
+                  isLoading={isLoading}
+                  lastUserMessage={lastUserMessage}
+                />
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="config" className="flex-1 m-0 overflow-auto">
+            <div className="p-6">
+              <ConfigurationTabs />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="users" className="flex-1 m-0 overflow-auto">
+            <div className="p-6">
+              <UserManagement />
+            </div>
+          </TabsContent>
+        </div>
+      </Tabs>
     </div>
   );
 };

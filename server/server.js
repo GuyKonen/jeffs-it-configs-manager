@@ -52,8 +52,8 @@ const db = new sqlite3.Database(dbPath, (err) => {
   }
 });
 
-// .env file path
-const envPath = path.join(__dirname, '..', '.env');
+// .env file path - updated to /app/.env
+const envPath = path.join('/app', '.env');
 
 // Initialize database tables and seed data
 function initializeDatabase() {
@@ -141,27 +141,38 @@ function seedDefaultUsers() {
 function readEnvFile() {
   try {
     if (!fs.existsSync(envPath)) {
-      console.log('.env file does not exist, creating default');
+      console.log('.env file does not exist at /app/.env, creating default');
       const defaultEnv = `# --- Azure MCP ---
-AZURE_MCP_SERVER_URL=
+AZURE_MCP_SERVER_URL=http://azure-mcp:7002/sse
 AZURE_CLIENT_ID=
 AZURE_CLIENT_SECRET=
+
 
 # --- Slack ---
 SLACK_ACCESS_TOKEN=
 
 # --- Okta ---
+OKTA_MCP_SERVER_URL=http://okta-mcp:7003/sse
 OKTA_CLIENT_ORGURL=
 OKTA_API_TOKEN=
 
-# --- Azure OpenAI ---
+# --- Azure OpenAI --- 
 OPENAI_RESOURCE_NAME=
 OPENAI_API_KEY=
 OPENAI_API_VERSION=
 OPENAI_DEPLOYMENT_NAME=
+OPENAI_DEPLOYMENT_NAME_2=
 OPENAI_MODEL=
 
+
 AZURE_TENANT_ID=
+
+
+# --- Intune ----
+INTUNE_MCP_SERVER_URL=http://intune-mcp:7004/sse
+INTUNE_CLIENT_ID=
+INTUNE_CLIENT_SECRET=
+INTUNE_TENANT_ID=
 `;
       fs.writeFileSync(envPath, defaultEnv);
       return defaultEnv;
@@ -193,25 +204,36 @@ function parseEnvContent(content) {
 
 function generateEnvContent(configs) {
   return `# --- Azure MCP ---
-AZURE_MCP_SERVER_URL=${configs.AZURE_MCP_SERVER_URL || ''}
+AZURE_MCP_SERVER_URL=http://azure-mcp:7002/sse
 AZURE_CLIENT_ID=${configs.AZURE_CLIENT_ID || ''}
 AZURE_CLIENT_SECRET=${configs.AZURE_CLIENT_SECRET || ''}
+
 
 # --- Slack ---
 SLACK_ACCESS_TOKEN=${configs.SLACK_ACCESS_TOKEN || ''}
 
 # --- Okta ---
+OKTA_MCP_SERVER_URL=http://okta-mcp:7003/sse
 OKTA_CLIENT_ORGURL=${configs.OKTA_CLIENT_ORGURL || ''}
 OKTA_API_TOKEN=${configs.OKTA_API_TOKEN || ''}
 
-# --- Azure OpenAI ---
+# --- Azure OpenAI --- 
 OPENAI_RESOURCE_NAME=${configs.OPENAI_RESOURCE_NAME || ''}
 OPENAI_API_KEY=${configs.OPENAI_API_KEY || ''}
 OPENAI_API_VERSION=${configs.OPENAI_API_VERSION || ''}
 OPENAI_DEPLOYMENT_NAME=${configs.OPENAI_DEPLOYMENT_NAME || ''}
+OPENAI_DEPLOYMENT_NAME_2=${configs.OPENAI_DEPLOYMENT_NAME_2 || ''}
 OPENAI_MODEL=${configs.OPENAI_MODEL || ''}
 
+
 AZURE_TENANT_ID=${configs.AZURE_TENANT_ID || ''}
+
+
+# --- Intune ----
+INTUNE_MCP_SERVER_URL=http://intune-mcp:7004/sse
+INTUNE_CLIENT_ID=${configs.INTUNE_CLIENT_ID || ''}
+INTUNE_CLIENT_SECRET=${configs.INTUNE_CLIENT_SECRET || ''}
+INTUNE_TENANT_ID=${configs.INTUNE_TENANT_ID || ''}
 `;
 }
 
@@ -220,7 +242,7 @@ app.get('/api/env-config', (req, res) => {
   try {
     const envContent = readEnvFile();
     const configs = parseEnvContent(envContent);
-    console.log('Retrieved env configs:', Object.keys(configs));
+    console.log('Retrieved env configs from /app/.env:', Object.keys(configs));
     res.json(configs);
   } catch (error) {
     console.error('Error reading env config:', error);
@@ -231,12 +253,12 @@ app.get('/api/env-config', (req, res) => {
 app.post('/api/env-config', (req, res) => {
   try {
     const { configs } = req.body;
-    console.log('Updating env configs:', Object.keys(configs));
+    console.log('Updating env configs at /app/.env:', Object.keys(configs));
     
     const envContent = generateEnvContent(configs);
     fs.writeFileSync(envPath, envContent);
     
-    console.log('Successfully updated .env file');
+    console.log('Successfully updated /app/.env file');
     res.json({ 
       success: true, 
       message: 'Environment configuration updated successfully' 

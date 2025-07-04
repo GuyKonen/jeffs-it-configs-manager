@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Settings, Key, Zap, MessageSquare, Cloud, Save, User } from 'lucide-react';
+import { Settings, Key, Zap, MessageSquare, Cloud, Save, User, Shield, Smartphone } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -16,15 +16,14 @@ const ConfigurationTabs = () => {
   const [loading, setLoading] = useState(true);
 
   const [configs, setConfigs] = useState({
-    // Azure MCP Configuration
-    AZURE_MCP_SERVER_URL: '',
+    // Azure MCP Configuration (AZURE_MCP_SERVER_URL is static)
     AZURE_CLIENT_ID: '',
     AZURE_CLIENT_SECRET: '',
     
     // Slack Configuration
     SLACK_ACCESS_TOKEN: '',
     
-    // Okta Configuration
+    // Okta Configuration (OKTA_MCP_SERVER_URL is static)
     OKTA_CLIENT_ORGURL: '',
     OKTA_API_TOKEN: '',
     
@@ -33,9 +32,15 @@ const ConfigurationTabs = () => {
     OPENAI_API_KEY: '',
     OPENAI_API_VERSION: '',
     OPENAI_DEPLOYMENT_NAME: '',
+    OPENAI_DEPLOYMENT_NAME_2: '',
     OPENAI_MODEL: '',
     
     AZURE_TENANT_ID: '',
+    
+    // Intune Configuration (INTUNE_MCP_SERVER_URL is static)
+    INTUNE_CLIENT_ID: '',
+    INTUNE_CLIENT_SECRET: '',
+    INTUNE_TENANT_ID: '',
   });
 
   useEffect(() => {
@@ -44,7 +49,7 @@ const ConfigurationTabs = () => {
 
   const loadConfigs = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/env-config');
+      const response = await fetch('/api/env-config');
       if (response.ok) {
         const data = await response.json();
         setConfigs(prevConfigs => ({
@@ -85,7 +90,7 @@ const ConfigurationTabs = () => {
 
     setSaving(true);
     try {
-      const response = await fetch('http://localhost:3001/api/env-config', {
+      const response = await fetch('/api/env-config', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -136,15 +141,6 @@ const ConfigurationTabs = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="azure-mcp-url">Azure MCP Server URL</Label>
-              <Input
-                id="azure-mcp-url"
-                placeholder="Enter Azure MCP server URL"
-                value={configs.AZURE_MCP_SERVER_URL}
-                onChange={(e) => handleInputChange('AZURE_MCP_SERVER_URL', e.target.value)}
-              />
-            </div>
             <div className="space-y-2">
               <Label htmlFor="azure-mcp-client-id">Azure Client ID</Label>
               <Input
@@ -200,7 +196,7 @@ const ConfigurationTabs = () => {
       <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
         <CardHeader>
           <div className="flex items-center space-x-2">
-            <Key className="h-6 w-6 text-orange-500" />
+            <Shield className="h-6 w-6 text-orange-500" />
             <CardTitle className="text-xl">Okta Integration</CardTitle>
           </div>
           <CardDescription>
@@ -283,6 +279,15 @@ const ConfigurationTabs = () => {
               />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="openai-deployment-2">Deployment Name 2</Label>
+              <Input
+                id="openai-deployment-2"
+                placeholder="your-deployment-name-2"
+                value={configs.OPENAI_DEPLOYMENT_NAME_2}
+                onChange={(e) => handleInputChange('OPENAI_DEPLOYMENT_NAME_2', e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="openai-model">Model Name</Label>
               <Input
                 id="openai-model"
@@ -298,6 +303,51 @@ const ConfigurationTabs = () => {
                 placeholder="Enter your Azure tenant ID"
                 value={configs.AZURE_TENANT_ID}
                 onChange={(e) => handleInputChange('AZURE_TENANT_ID', e.target.value)}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Intune Configuration */}
+      <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+        <CardHeader>
+          <div className="flex items-center space-x-2">
+            <Smartphone className="h-6 w-6 text-purple-500" />
+            <CardTitle className="text-xl">Intune Integration</CardTitle>
+          </div>
+          <CardDescription>
+            Configure Microsoft Intune settings for device management
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="intune-client-id">Intune Client ID</Label>
+              <Input
+                id="intune-client-id"
+                placeholder="Enter your Intune client ID"
+                value={configs.INTUNE_CLIENT_ID}
+                onChange={(e) => handleInputChange('INTUNE_CLIENT_ID', e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="intune-client-secret">Intune Client Secret</Label>
+              <Input
+                id="intune-client-secret"
+                type="password"
+                placeholder="Enter your Intune client secret"
+                value={configs.INTUNE_CLIENT_SECRET}
+                onChange={(e) => handleInputChange('INTUNE_CLIENT_SECRET', e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="intune-tenant-id">Intune Tenant ID</Label>
+              <Input
+                id="intune-tenant-id"
+                placeholder="Enter your Intune tenant ID"
+                value={configs.INTUNE_TENANT_ID}
+                onChange={(e) => handleInputChange('INTUNE_TENANT_ID', e.target.value)}
               />
             </div>
           </div>
