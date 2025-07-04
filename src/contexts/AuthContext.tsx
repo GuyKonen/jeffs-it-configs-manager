@@ -27,12 +27,27 @@ export const useAuth = () => {
 
 // Get API URL from environment or use default
 const getApiUrl = () => {
-  // In Docker, the backend service is accessible via internal network
-  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-    // If accessing via localhost, use the exposed port
+  const hostname = window.location.hostname;
+  const port = window.location.port;
+  
+  console.log('🔍 DEBUG: Current hostname:', hostname);
+  console.log('🔍 DEBUG: Current port:', port);
+  console.log('🔍 DEBUG: Full location:', window.location.href);
+  
+  // If accessing via localhost with specific port, use direct backend port
+  if (hostname === 'localhost' && port === '3000') {
+    console.log('🔍 DEBUG: Using direct backend URL: http://localhost:3001');
     return 'http://localhost:3001';
   }
-  // If accessing via Docker network or nginx proxy, use the proxy
+  
+  // If accessing via localhost port 80 or no port, use proxy
+  if (hostname === 'localhost') {
+    console.log('🔍 DEBUG: Using proxy URL: http://localhost/api');
+    return 'http://localhost/api';
+  }
+  
+  // Default to relative API path
+  console.log('🔍 DEBUG: Using relative API path: /api');
   return '/api';
 };
 
@@ -44,15 +59,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Check for local auth in localStorage (for session persistence)
     const initializeAuth = async () => {
       try {
+        console.log('🔍 DEBUG: Initializing auth...');
         const localAuth = localStorage.getItem('local_auth');
         if (localAuth) {
+          console.log('🔍 DEBUG: Found local auth in localStorage:', localAuth);
           const userData = JSON.parse(localAuth);
           setUser(userData);
+        } else {
+          console.log('🔍 DEBUG: No local auth found in localStorage');
         }
       } catch (error) {
-        console.error('Failed to initialize auth:', error);
+        console.error('❌ ERROR: Failed to initialize auth:', error);
       } finally {
         setLoading(false);
+        console.log('🔍 DEBUG: Auth initialization complete');
       }
     };
 
@@ -62,30 +82,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signInWithUsername = async (username: string, password: string, totpToken?: string) => {
     try {
       const apiUrl = getApiUrl();
-      console.log('Making auth request to:', `${apiUrl}/auth/login`);
+      const fullUrl = `${apiUrl}/auth/login`;
       
-      const response = await fetch(`${apiUrl}/auth/login`, {
+      console.log('🔍 DEBUG: Starting login attempt...');
+      console.log('🔍 DEBUG: Username:', username);
+      console.log('🔍 DEBUG: API URL:', apiUrl);
+      console.log('🔍 DEBUG: Full URL:', fullUrl);
+      console.log('🔍 DEBUG: Has TOTP token:', !!totpToken);
+      
+      const requestBody = {
+        username,
+        password,
+        totp_token: totpToken
+      };
+      
+      console.log('🔍 DEBUG: Request body:', { ...requestBody, password: '[HIDDEN]' });
+      
+      console.log('🔍 DEBUG: Making fetch request...');
+      const response = await fetch(fullUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          username,
-          password,
-          totp_token: totpToken
-        }),
+        body: JSON.stringify(requestBody),
       });
 
-      const data = await response.json();
-      console.log('Auth response:', data);
+      console.log('🔍 DEBUG: Response status:', response.status);
+      console.log('🔍 DEBUG: Response headers:', Object.fromEntries(response.headers.entries()));
+      
+      let data;
+      try {
+        const responseText = await response.text();
+        console.log('🔍 DEBUG: Raw response text:', responseText);
+        data = JSON.parse(responseText);
+        console.log('🔍 DEBUG: Parsed response data:', data);
+      } catch (parseError) {
+        console.error('❌ ERROR: Failed to parse response as JSON:', parseError);
+        return { error: 'Invalid response from server' };
+      }
 
       if (!response.ok) {
+        console.log('❌ ERROR: Response not OK. Status:', response.status);
         if (data.requires_totp) {
+          console.log('🔍 DEBUG: TOTP required');
           return { requiresTotp: true };
         }
+        console.log('❌ ERROR: Auth error:', data.error);
         return { error: data.error || 'Authentication failed' };
       }
 
+      console.log('✅ SUCCESS: Login successful');
       const userData = {
         id: data.id,
         username: data.username,
@@ -93,19 +139,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         totp_enabled: data.totp_enabled
       };
 
+      console.log('🔍 DEBUG: User data:', userData);
       localStorage.setItem('local_auth', JSON.stringify(userData));
       setUser(userData);
 
       return {};
     } catch (error: any) {
-      console.error('Auth request error:', error);
-      return { error: 'Network error - could not connect' };
+      console.error('❌ ERROR: Network/fetch error:', error);
+      console.error('❌ ERROR: Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+      return { error: 'Network error - could not connect to server' };
     }
   };
 
   const signOut = async () => {
+    console.log('🔍 DEBUG: Signing out...');
     localStorage.removeItem('local_auth');
     setUser(null);
+    console.log('✅ SUCCESS: Signed out');
   };
 
   const value = {

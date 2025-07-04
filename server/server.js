@@ -8,17 +8,46 @@ const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Enhanced logging middleware
+app.use((req, res, next) => {
+  const timestamp = new Date().toISOString();
+  console.log(`\n🌐 [${timestamp}] ${req.method} ${req.url}`);
+  console.log('🔍 Headers:', JSON.stringify(req.headers, null, 2));
+  console.log('🔍 Origin:', req.get('Origin') || 'No Origin header');
+  console.log('🔍 Host:', req.get('Host') || 'No Host header');
+  console.log('🔍 User-Agent:', req.get('User-Agent') || 'No User-Agent');
+  next();
+});
+
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: '*',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
+
 app.use(express.json());
+
+// Add middleware to log request body
+app.use((req, res, next) => {
+  if (req.body && Object.keys(req.body).length > 0) {
+    const logBody = { ...req.body };
+    if (logBody.password) logBody.password = '[HIDDEN]';
+    console.log('📝 Request Body:', JSON.stringify(logBody, null, 2));
+  }
+  next();
+});
 
 // Database setup - creates actual SQLite file
 const dbPath = path.join(__dirname, 'database.sqlite');
+console.log('🔍 DEBUG: Database path:', dbPath);
+
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
-    console.error('Error opening database:', err);
+    console.error('❌ ERROR: Error opening database:', err);
   } else {
-    console.log('Connected to SQLite database at:', dbPath);
+    console.log('✅ SUCCESS: Connected to SQLite database at:', dbPath);
     initializeDatabase();
   }
 });
@@ -30,7 +59,7 @@ const envPath = path.join(__dirname, '..', '.env');
 function initializeDatabase() {
   // Create tables
   db.serialize(() => {
-    console.log('SERVER: Initializing database schema...');
+    console.log('🔍 DEBUG: Initializing database schema...');
     
     // Create the users table with all required columns
     db.run(`CREATE TABLE IF NOT EXISTS users (
@@ -44,9 +73,9 @@ function initializeDatabase() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`, (err) => {
       if (err) {
-        console.error('SERVER: Error creating users table:', err);
+        console.error('❌ ERROR: Error creating users table:', err);
       } else {
-        console.log('SERVER: Users table created/verified with TOTP columns');
+        console.log('✅ SUCCESS: Users table created/verified');
         seedDefaultUsers();
       }
     });
@@ -73,16 +102,23 @@ function initializeDatabase() {
 }
 
 function seedDefaultUsers() {
+  console.log('🔍 DEBUG: Checking for default users...');
   // Seed admin user if not exists
   db.get("SELECT id FROM users WHERE username = 'admin'", (err, row) => {
+    if (err) {
+      console.error('❌ ERROR: Error checking for admin user:', err);
+      return;
+    }
+    
     if (!row) {
+      console.log('🔍 DEBUG: Creating default users...');
       const hashedPassword = bcrypt.hashSync('123', 10);
       db.run("INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)", 
         ['admin', hashedPassword, 'admin'], (err) => {
         if (err) {
-          console.error('SERVER: Error creating admin user:', err);
+          console.error('❌ ERROR: Error creating admin user:', err);
         } else {
-          console.log('SERVER: Created admin user (password: 123)');
+          console.log('✅ SUCCESS: Created admin user (username: admin, password: 123)');
         }
       });
       
@@ -90,13 +126,13 @@ function seedDefaultUsers() {
       db.run("INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)", 
         ['user', userPassword, 'user'], (err) => {
         if (err) {
-          console.error('SERVER: Error creating regular user:', err);
+          console.error('❌ ERROR: Error creating regular user:', err);
         } else {
-          console.log('SERVER: Created regular user (password: user)');
+          console.log('✅ SUCCESS: Created regular user (username: user, password: user)');
         }
       });
     } else {
-      console.log('SERVER: Default users already exist');
+      console.log('✅ INFO: Default users already exist');
     }
   });
 }
@@ -214,50 +250,80 @@ app.post('/api/env-config', (req, res) => {
 // Auth endpoints
 app.post('/api/auth/login', async (req, res) => {
   const { username, password, totp_token } = req.body;
-  console.log('SERVER: Login attempt for username:', username);
   
+  console.log('\n🔐 LOGIN ATTEMPT');
+  console.log('🔍 Username:', username);
+  console.log('🔍 Has password:', !!password);
+  console.log('🔍 Has TOTP token:', !!totp_token);
+  console.log('🔍 Request IP:', req.ip);
+  console.log('🔍 Request timestamp:', new Date().toISOString());
+  
+  if (!username || !password) {
+    console.log('❌ ERROR: Missing username or password');
+    return res.status(400).json({ error: 'Username and password are required' });
+  }
+  
+  console.log('🔍 DEBUG: Querying database for user...');
   db.get("SELECT * FROM users WHERE username = ? AND is_active = 1", [username], async (err, user) => {
     if (err) {
-      console.error('SERVER: Database error during login:', err);
+      console.error('❌ ERROR: Database error during login:', err);
       return res.status(500).json({ error: 'Database error' });
     }
     
     if (!user) {
-      console.log('SERVER: User not found or inactive:', username);
+      console.log('❌ ERROR: User not found or inactive:', username);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
     
-    if (!bcrypt.compareSync(password, user.password_hash)) {
-      console.log('SERVER: Invalid password for user:', username);
+    console.log('✅ SUCCESS: User found in database');
+    console.log('🔍 User details:', {
+      id: user.id,
+      username: user.username,
+      role: user.role,
+      totp_enabled: user.totp_enabled,
+      is_active: user.is_active
+    });
+    
+    console.log('🔍 DEBUG: Comparing passwords...');
+    const passwordMatch = bcrypt.compareSync(password, user.password_hash);
+    if (!passwordMatch) {
+      console.log('❌ ERROR: Invalid password for user:', username);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
+    
+    console.log('✅ SUCCESS: Password matches');
     
     // Check TOTP if enabled
     if (user.totp_enabled && user.totp_secret) {
+      console.log('🔍 DEBUG: TOTP is enabled for user');
       if (!totp_token) {
-        console.log('SERVER: TOTP token required for user:', username);
+        console.log('❌ ERROR: TOTP token required but not provided');
         return res.status(401).json({ error: 'TOTP token required', requires_totp: true });
       }
       
       try {
         const { authenticator } = require('otplib');
         if (!authenticator.verify({ token: totp_token, secret: user.totp_secret })) {
-          console.log('SERVER: Invalid TOTP token for user:', username);
+          console.log('❌ ERROR: Invalid TOTP token');
           return res.status(401).json({ error: 'Invalid TOTP token' });
         }
+        console.log('✅ SUCCESS: TOTP token verified');
       } catch (error) {
-        console.error('SERVER: TOTP verification error:', error);
+        console.error('❌ ERROR: TOTP verification error:', error);
         return res.status(500).json({ error: 'TOTP verification failed' });
       }
     }
     
-    console.log('SERVER: Successful login for user:', username);
-    res.json({
+    const responseData = {
       id: user.id,
       username: user.username,
       role: user.role,
       totp_enabled: user.totp_enabled || false
-    });
+    };
+    
+    console.log('✅ SUCCESS: Login successful for user:', username);
+    console.log('🔍 Response data:', responseData);
+    res.json(responseData);
   });
 });
 
@@ -509,17 +575,46 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-  console.log(`SQLite database file: ${dbPath}`);
+// Add a health check endpoint
+app.get('/api/health', (req, res) => {
+  console.log('💓 Health check requested');
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    server: 'JeffFromIT Backend',
+    port: PORT 
+  });
+});
+
+// Add a test endpoint
+app.get('/api/test', (req, res) => {
+  console.log('🧪 Test endpoint requested');
+  res.json({ 
+    message: 'Backend is working!',
+    timestamp: new Date().toISOString(),
+    headers: req.headers
+  });
+});
+
+console.log(`\n🚀 Starting server...`);
+console.log(`🔍 Environment: ${process.env.NODE_ENV || 'development'}`);
+console.log(`🔍 Port: ${PORT}`);
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`\n✅ SUCCESS: Server running on http://0.0.0.0:${PORT}`);
+  console.log(`🔍 Database file: ${dbPath}`);
+  console.log(`🔍 Server ready to accept connections\n`);
 });
 
 process.on('SIGINT', () => {
+  console.log('\n🛑 Shutting down server...');
   db.close((err) => {
     if (err) {
-      console.error(err.message);
+      console.error('❌ ERROR:', err.message);
+    } else {
+      console.log('✅ SUCCESS: Database connection closed');
     }
-    console.log('Database connection closed.');
+    console.log('👋 Server shutdown complete');
     process.exit(0);
   });
 });
