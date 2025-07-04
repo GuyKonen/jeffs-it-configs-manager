@@ -1,25 +1,10 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Search, MessageSquare, Plus, MoreHorizontal, Star, Download, Trash2 } from 'lucide-react';
-
-interface Message {
-  id: string;
-  type: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-}
-
-interface ChatSession {
-  id: string;
-  title: string;
-  messages: Message[];
-  timestamp: Date;
-  starred?: boolean;
-}
+import { Message, ChatSession } from '@/types/chat';
 
 interface ChatSidebarProps {
   onNewChat: () => void;

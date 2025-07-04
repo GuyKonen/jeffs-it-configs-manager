@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MessageSquare, Settings, Users, Cloud, Shield, Smartphone } from 'lucide-react';
@@ -6,21 +5,7 @@ import ChatWindow from './chat/ChatWindow';
 import ChatSidebar from './chat/ChatSidebar';
 import ConfigurationTabs from './ConfigurationTabs';
 import UserManagement from './UserManagement';
-
-interface Message {
-  id: string;
-  type: 'user' | 'assistant';
-  content: string;
-  timestamp: string;
-}
-
-interface ChatSession {
-  id: string;
-  title: string;
-  messages: Message[];
-  timestamp: Date;
-  starred?: boolean;
-}
+import { Message, ChatSession } from '@/types/chat';
 
 const OpenWebUIInterface = () => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -37,7 +22,7 @@ const OpenWebUIInterface = () => {
       id: Date.now().toString(),
       type: 'user' as const,
       content: message,
-      timestamp: new Date().toISOString()
+      timestamp: new Date()
     };
     
     setMessages(prev => [...prev, userMessage]);
@@ -61,7 +46,7 @@ const OpenWebUIInterface = () => {
         id: (Date.now() + 1).toString(),
         type: 'assistant' as const,
         content: data.response || 'No response received',
-        timestamp: new Date().toISOString()
+        timestamp: new Date()
       };
       
       setMessages(prev => [...prev, assistantMessage]);
@@ -71,7 +56,7 @@ const OpenWebUIInterface = () => {
         id: (Date.now() + 1).toString(),
         type: 'assistant' as const,
         content: 'Sorry, there was an error processing your request.',
-        timestamp: new Date().toISOString()
+        timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);
     } finally {
@@ -160,14 +145,10 @@ const OpenWebUIInterface = () => {
               />
             </TabsContent>
             <TabsContent value="config" className="m-0 h-full p-4">
-              <div className="text-sm text-slate-600">
-                Environment Configuration
-              </div>
+              <ConfigurationTabs />
             </TabsContent>
             <TabsContent value="users" className="m-0 h-full p-4">
-              <div className="text-sm text-slate-600">
-                User Management
-              </div>
+              <UserManagement />
             </TabsContent>
           </div>
         </div>
