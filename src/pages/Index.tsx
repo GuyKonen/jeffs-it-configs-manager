@@ -1,4 +1,3 @@
-
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -9,9 +8,20 @@ import ConfigurationTabs from "@/components/ConfigurationTabs";
 import UserManagement from "@/components/UserManagement";
 import ChatWindow from "@/components/chat/ChatWindow";
 import ConnectionTest from "@/components/ConnectionTest";
+import { useState } from "react";
+
+interface Message {
+  id: string;
+  type: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+}
 
 const Index = () => {
   const { user, loading, signOut } = useAuth();
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [lastUserMessage, setLastUserMessage] = useState<string>();
 
   if (loading) {
     return (
@@ -24,6 +34,39 @@ const Index = () => {
   if (!user) {
     return <Navigate to="/auth" replace />;
   }
+
+  const handleSendMessage = async (content: string) => {
+    setIsLoading(true);
+    setLastUserMessage(content);
+    
+    // Add user message
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      type: 'user',
+      content,
+      timestamp: new Date()
+    };
+    
+    setMessages(prev => [...prev, userMessage]);
+    
+    try {
+      // Simulate AI response (replace with actual API call)
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const aiMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        type: 'assistant',
+        content: "I'm a placeholder AI response. Please implement the actual chat functionality with your backend.",
+        timestamp: new Date()
+      };
+      
+      setMessages(prev => [...prev, aiMessage]);
+    } catch (error) {
+      console.error('Error sending message:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -78,7 +121,12 @@ const Index = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ChatWindow />
+                <ChatWindow 
+                  messages={messages}
+                  onSendMessage={handleSendMessage}
+                  isLoading={isLoading}
+                  lastUserMessage={lastUserMessage}
+                />
               </CardContent>
             </Card>
           </TabsContent>
