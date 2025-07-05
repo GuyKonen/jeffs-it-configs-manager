@@ -114,101 +114,104 @@ const OpenWebUIInterface = () => {
   return (
     <div className="flex h-full bg-gradient-to-br from-slate-50 to-slate-100">
       <Tabs defaultValue="chat" className="flex h-full w-full">
-        {/* Sidebar */}
-        <div className="w-80 bg-white border-r border-slate-200 flex flex-col">
-          <div className="p-4 border-b border-slate-200">
-            <TabsList className="grid w-full grid-cols-3 gap-1">
-              <TabsTrigger value="chat" className="flex items-center gap-2 text-xs">
+        {/* Main Header with Primary Tabs */}
+        <div className="flex flex-col h-full w-full">
+          <div className="bg-white border-b border-slate-200 px-6 py-4">
+            <TabsList className="grid w-full grid-cols-3 max-w-md">
+              <TabsTrigger value="chat" className="flex items-center gap-2">
                 <MessageSquare className="h-4 w-4" />
                 Chat
               </TabsTrigger>
-              <TabsTrigger value="config" className="flex items-center gap-2 text-xs">
+              <TabsTrigger value="config" className="flex items-center gap-2">
                 <Settings className="h-4 w-4" />
                 Config
               </TabsTrigger>
-              <TabsTrigger value="users" className="flex items-center gap-2 text-xs">
+              <TabsTrigger value="users" className="flex items-center gap-2">
                 <Users className="h-4 w-4" />
                 Users
               </TabsTrigger>
             </TabsList>
           </div>
-          
-          <div className="flex-1 overflow-hidden">
-            <TabsContent value="chat" className="m-0 h-full">
-              <ChatSidebar 
-                onNewChat={handleNewChat}
-                sessions={sessions}
-                currentSessionId={currentSessionId}
-                onSessionSelect={handleSessionSelect}
-                onStarChat={handleStarChat}
-                onDownloadChat={handleDownloadChat}
-                onDeleteChat={handleDeleteChat}
-              />
-            </TabsContent>
-            <TabsContent value="config" className="m-0 h-full p-4">
-              <ConfigurationTabs />
-            </TabsContent>
-            <TabsContent value="users" className="m-0 h-full p-4">
-              <UserManagement />
-            </TabsContent>
-          </div>
-        </div>
 
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col">
-          <TabsContent value="chat" className="flex-1 m-0">
-            <div className="h-full flex flex-col">
-              {/* Service Selection Tabs */}
-              <div className="bg-white border-b border-slate-200 px-6 py-4">
-                <Tabs defaultValue="general" className="w-full">
-                  <TabsList className="grid w-full grid-cols-5">
-                    <TabsTrigger value="general" className="flex items-center gap-2">
-                      <MessageSquare className="h-4 w-4" />
-                      Chat
-                    </TabsTrigger>
-                    <TabsTrigger value="azure" className="flex items-center gap-2">
-                      <Cloud className="h-4 w-4" />
-                      Azure
-                    </TabsTrigger>
-                    <TabsTrigger value="okta" className="flex items-center gap-2">
-                      <Shield className="h-4 w-4" />
-                      Okta
-                    </TabsTrigger>
-                    <TabsTrigger value="intune" className="flex items-center gap-2">
-                      <Smartphone className="h-4 w-4" />
-                      Intune
-                    </TabsTrigger>
-                    <TabsTrigger value="activedirectory" className="flex items-center gap-2">
-                      <Users className="h-4 w-4" />
-                      Active Directory
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </div>
-              
-              {/* Chat Interface */}
-              <div className="flex-1">
-                <ChatWindow 
-                  messages={messages}
-                  onSendMessage={handleSendMessage}
-                  isLoading={isLoading}
-                  lastUserMessage={lastUserMessage}
+          <div className="flex flex-1 overflow-hidden">
+            {/* Sidebar */}
+            <div className="w-80 bg-white border-r border-slate-200 flex flex-col">
+              <TabsContent value="chat" className="m-0 h-full">
+                <ChatSidebar 
+                  onNewChat={handleNewChat}
+                  sessions={sessions}
+                  currentSessionId={currentSessionId}
+                  onSessionSelect={handleSessionSelect}
+                  onStarChat={handleStarChat}
+                  onDownloadChat={handleDownloadChat}
+                  onDeleteChat={handleDeleteChat}
                 />
-              </div>
+              </TabsContent>
+              <TabsContent value="config" className="m-0 h-full p-4">
+                <ConfigurationTabs />
+              </TabsContent>
+              <TabsContent value="users" className="m-0 h-full p-4">
+                <UserManagement />
+              </TabsContent>
             </div>
-          </TabsContent>
 
-          <TabsContent value="config" className="flex-1 m-0 overflow-auto">
-            <div className="p-6">
-              <ConfigurationTabs />
-            </div>
-          </TabsContent>
+            {/* Main Content */}
+            <div className="flex-1 flex flex-col">
+              <TabsContent value="chat" className="flex-1 m-0">
+                <div className="h-full flex flex-col">
+                  {/* Service Selection Tabs */}
+                  <div className="bg-white border-b border-slate-200 px-6 py-4">
+                    <Tabs defaultValue="general" className="w-full">
+                      <TabsList className="grid w-full grid-cols-5">
+                        <TabsTrigger value="general" className="flex items-center gap-2">
+                          <MessageSquare className="h-4 w-4" />
+                          Chat
+                        </TabsTrigger>
+                        <TabsTrigger value="azure" className="flex items-center gap-2">
+                          <Cloud className="h-4 w-4" />
+                          Azure
+                        </TabsTrigger>
+                        <TabsTrigger value="okta" className="flex items-center gap-2">
+                          <Shield className="h-4 w-4" />
+                          Okta
+                        </TabsTrigger>
+                        <TabsTrigger value="intune" className="flex items-center gap-2">
+                          <Smartphone className="h-4 w-4" />
+                          Intune
+                        </TabsTrigger>
+                        <TabsTrigger value="activedirectory" className="flex items-center gap-2">
+                          <Users className="h-4 w-4" />
+                          Active Directory
+                        </TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                  </div>
+                  
+                  {/* Chat Interface */}
+                  <div className="flex-1">
+                    <ChatWindow 
+                      messages={messages}
+                      onSendMessage={handleSendMessage}
+                      isLoading={isLoading}
+                      lastUserMessage={lastUserMessage}
+                    />
+                  </div>
+                </div>
+              </TabsContent>
 
-          <TabsContent value="users" className="flex-1 m-0 overflow-auto">
-            <div className="p-6">
-              <UserManagement />
+              <TabsContent value="config" className="flex-1 m-0 overflow-auto">
+                <div className="p-6">
+                  <ConfigurationTabs />
+                </div>
+              </TabsContent>
+
+              <TabsContent value="users" className="flex-1 m-0 overflow-auto">
+                <div className="p-6">
+                  <UserManagement />
+                </div>
+              </TabsContent>
             </div>
-          </TabsContent>
+          </div>
         </div>
       </Tabs>
     </div>
