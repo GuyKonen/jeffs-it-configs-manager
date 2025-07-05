@@ -87,7 +87,7 @@ const Auth = () => {
           {/* New Logo */}
           <div className="flex justify-center">
             <img 
-              src="/lovable-uploads/2202c54e-4a9d-4605-b06b-a57e8bf9139f.png" 
+              src="/lovable-uploads/cae3e7c7-d823-483e-82ab-14fe4832b04f.png" 
               alt="JeffFromIT Logo" 
               className="w-[600px] h-[600px] object-contain mix-blend-multiply opacity-90"
               style={{
