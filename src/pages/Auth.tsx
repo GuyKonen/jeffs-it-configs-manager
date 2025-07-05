@@ -89,7 +89,11 @@ const Auth = () => {
             <img 
               src="/lovable-uploads/2202c54e-4a9d-4605-b06b-a57e8bf9139f.png" 
               alt="JeffFromIT Logo" 
-              className="w-[300px] h-[300px] object-contain"
+              className="w-[300px] h-[300px] object-contain mix-blend-multiply opacity-90"
+              style={{
+                filter: 'brightness(1.1) contrast(1.1)',
+                mixBlendMode: 'multiply'
+              }}
             />
           </div>
           
