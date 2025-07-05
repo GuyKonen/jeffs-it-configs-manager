@@ -209,18 +209,18 @@ const OpenWebUIInterface = () => {
             </TabsContent>
 
             {/* Config Tab without Sidebar - Properly Centered */}
-            <TabsContent value="config" className="m-0 h-full w-full overflow-auto">
-              <div className="flex justify-center items-start w-full h-full">
-                <div className="w-full max-w-4xl mx-auto p-6">
+            <TabsContent value="config" className="m-0 h-full w-full overflow-auto bg-gradient-to-br from-slate-50 to-slate-100">
+              <div className="min-h-full flex items-start justify-center py-8">
+                <div className="w-full max-w-4xl px-6">
                   <ConfigurationTabs />
                 </div>
               </div>
             </TabsContent>
 
             {/* Users Tab without Sidebar - Properly Centered */}
-            <TabsContent value="users" className="m-0 h-full w-full overflow-auto">
-              <div className="flex justify-center items-start w-full h-full">
-                <div className="w-full max-w-4xl mx-auto p-6">
+            <TabsContent value="users" className="m-0 h-full w-full overflow-auto bg-gradient-to-br from-slate-50 to-slate-100">
+              <div className="min-h-full flex items-start justify-center py-8">
+                <div className="w-full max-w-4xl px-6">
                   <UserManagement />
                 </div>
               </div>
