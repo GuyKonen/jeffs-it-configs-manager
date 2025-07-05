@@ -83,13 +83,13 @@ const Auth = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-6">
       <div className="w-full max-w-md">
         {/* Header */}
-        <div className="text-center space-y-6 mb-8">
+        <div className="text-center space-y-3 mb-8">
           {/* New Logo */}
           <div className="flex justify-center">
             <img 
               src="/lovable-uploads/2202c54e-4a9d-4605-b06b-a57e8bf9139f.png" 
               alt="JeffFromIT Logo" 
-              className="w-[300px] h-[300px] object-contain mix-blend-multiply opacity-90"
+              className="w-[600px] h-[600px] object-contain mix-blend-multiply opacity-90"
               style={{
                 filter: 'brightness(1.1) contrast(1.1)',
                 mixBlendMode: 'multiply'
