@@ -13,6 +13,7 @@ const OpenWebUIInterface = () => {
   const [lastUserMessage, setLastUserMessage] = useState('');
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [selectedService, setSelectedService] = useState('general');
 
   const handleSendMessage = async (message: string) => {
     setIsLoading(true);
@@ -28,7 +29,15 @@ const OpenWebUIInterface = () => {
     setMessages(prev => [...prev, userMessage]);
     
     try {
-      const response = await fetch('/api/chat', {
+      // Determine the endpoint based on selected service
+      let endpoint = 'http://jeff-ai:8000/chat';
+      if (selectedService === 'azure') {
+        endpoint = 'http://jeff-ai:8000/azure';
+      } else if (selectedService === 'okta') {
+        endpoint = 'http://jeff-ai:8000/okta';
+      }
+      
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -155,7 +164,7 @@ const OpenWebUIInterface = () => {
                 <div className="h-full flex flex-col">
                   {/* Service Selection Tabs */}
                   <div className="bg-white border-b border-slate-200 px-6 py-4">
-                    <Tabs defaultValue="general" className="w-full">
+                    <Tabs value={selectedService} onValueChange={setSelectedService} className="w-full">
                       <TabsList className="grid w-full grid-cols-5">
                         <TabsTrigger value="general" className="flex items-center gap-2">
                           <MessageSquare className="h-4 w-4" />
@@ -194,17 +203,21 @@ const OpenWebUIInterface = () => {
               </div>
             </TabsContent>
 
-            {/* Config Tab without Sidebar */}
+            {/* Config Tab without Sidebar - Centered Content */}
             <TabsContent value="config" className="m-0 h-full w-full overflow-auto">
-              <div className="p-6">
-                <ConfigurationTabs />
+              <div className="flex justify-center w-full h-full">
+                <div className="w-full max-w-6xl p-6">
+                  <ConfigurationTabs />
+                </div>
               </div>
             </TabsContent>
 
-            {/* Users Tab without Sidebar */}
+            {/* Users Tab without Sidebar - Centered Content */}
             <TabsContent value="users" className="m-0 h-full w-full overflow-auto">
-              <div className="p-6">
-                <UserManagement />
+              <div className="flex justify-center w-full h-full">
+                <div className="w-full max-w-6xl p-6">
+                  <UserManagement />
+                </div>
               </div>
             </TabsContent>
           </div>
