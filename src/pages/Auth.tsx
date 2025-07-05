@@ -87,13 +87,13 @@ const Auth = () => {
           {/* New Logo */}
           <div className="flex justify-center">
             <img 
-              src="/lovable-uploads/2d6368a7-b76b-45b7-835c-cd9e813aa6bc.png" 
+              src="/lovable-uploads/2202c54e-4a9d-4605-b06b-a57e8bf9139f.png" 
               alt="JeffFromIT Logo" 
-              className="w-48 h-48 object-contain"
+              className="w-[300px] h-[300px] object-contain"
             />
           </div>
           
-          {/* Title without small logo */}
+          {/* Title */}
           <h1 className="text-3xl font-bold text-slate-800">JeffFromIT</h1>
           
           <p className="text-slate-600">
