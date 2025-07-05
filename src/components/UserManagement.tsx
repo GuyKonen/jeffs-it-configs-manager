@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Users, Plus, Edit, Trash2, Shield, Key } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, Shield, Key, Crown, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { database } from '@/utils/database';
 
@@ -287,10 +288,18 @@ const UserManagement = () => {
               <TableBody>
                 {users.map((user) => (
                   <TableRow key={user.id}>
-                    <TableCell className="font-medium">{user.username}</TableCell>
+                    <TableCell className="font-medium flex items-center gap-2">
+                      {user.role === 'admin' ? (
+                        <Crown className="h-4 w-4 text-yellow-600" />
+                      ) : (
+                        <User className="h-4 w-4 text-gray-500" />
+                      )}
+                      {user.username}
+                    </TableCell>
                     <TableCell>
-                      <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
-                        {user.role}
+                      <Badge variant={user.role === 'admin' ? 'default' : 'secondary'} className={user.role === 'admin' ? 'bg-yellow-600 hover:bg-yellow-700' : ''}>
+                        {user.role === 'admin' && <Crown className="h-3 w-3 mr-1" />}
+                        {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                       </Badge>
                     </TableCell>
                     <TableCell>

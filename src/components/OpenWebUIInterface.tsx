@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MessageSquare, Settings, Users, Cloud, Shield, Smartphone } from 'lucide-react';
@@ -35,6 +36,10 @@ const OpenWebUIInterface = () => {
         endpoint = 'http://jeff-ai:8000/azure';
       } else if (selectedService === 'okta') {
         endpoint = 'http://jeff-ai:8000/okta';
+      } else if (selectedService === 'intune') {
+        endpoint = 'http://jeff-ai:8000/intune';
+      } else if (selectedService === 'activedirectory') {
+        endpoint = 'http://jeff-ai:8000/ad';
       }
       
       const response = await fetch(endpoint, {
@@ -203,19 +208,19 @@ const OpenWebUIInterface = () => {
               </div>
             </TabsContent>
 
-            {/* Config Tab without Sidebar - Centered Content */}
+            {/* Config Tab without Sidebar - Properly Centered */}
             <TabsContent value="config" className="m-0 h-full w-full overflow-auto">
-              <div className="flex justify-center w-full h-full">
-                <div className="w-full max-w-6xl p-6">
+              <div className="flex justify-center items-start w-full h-full">
+                <div className="w-full max-w-4xl mx-auto p-6">
                   <ConfigurationTabs />
                 </div>
               </div>
             </TabsContent>
 
-            {/* Users Tab without Sidebar - Centered Content */}
+            {/* Users Tab without Sidebar - Properly Centered */}
             <TabsContent value="users" className="m-0 h-full w-full overflow-auto">
-              <div className="flex justify-center w-full h-full">
-                <div className="w-full max-w-6xl p-6">
+              <div className="flex justify-center items-start w-full h-full">
+                <div className="w-full max-w-4xl mx-auto p-6">
                   <UserManagement />
                 </div>
               </div>
