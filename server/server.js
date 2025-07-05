@@ -422,13 +422,24 @@ app.post('/api/totp/disable', (req, res) => {
 
 // User management endpoints
 app.get('/api/users', (req, res) => {
-  console.log('SERVER: Fetching all users');
+  // Check if this is a health check request (from wget or similar automated tools)
+  const userAgent = req.get('User-Agent') || '';
+  const isHealthCheck = userAgent.includes('Wget') || userAgent.includes('curl') || userAgent.includes('healthcheck');
+  
+  if (!isHealthCheck) {
+    console.log('SERVER: Fetching all users');
+  }
+  
   db.all("SELECT id, username, role, is_active, totp_enabled, created_at FROM users ORDER BY created_at DESC", (err, rows) => {
     if (err) {
       console.error('SERVER: Database error fetching users:', err);
       return res.status(500).json({ error: 'Database error' });
     }
-    console.log('SERVER: Found users:', rows.length);
+    
+    if (!isHealthCheck) {
+      console.log('SERVER: Found users:', rows.length);
+    }
+    
     res.json(rows);
   });
 });
