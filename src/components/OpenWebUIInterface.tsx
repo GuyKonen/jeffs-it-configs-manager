@@ -14,6 +14,7 @@ const OpenWebUIInterface = () => {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [selectedService, setSelectedService] = useState('general');
+  const [activeTab, setActiveTab] = useState('interface');
 
   const handleSendMessage = async (message: string) => {
     setIsLoading(true);
@@ -125,31 +126,52 @@ const OpenWebUIInterface = () => {
 
   return (
     <div className="flex h-full bg-gradient-to-br from-slate-50 to-slate-100">
-      <Tabs defaultValue="interface" className="flex h-full w-full">
-        {/* Main Header with Primary Tabs - Centered */}
-        <div className="flex flex-col h-full w-full">
-          <div className="bg-white border-b border-slate-200 px-6 py-4">
-            <div className="flex justify-center">
-              <TabsList className="grid w-full grid-cols-3 max-w-md">
-                <TabsTrigger value="interface" className="flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4" />
-                  Interface
-                </TabsTrigger>
-                <TabsTrigger value="config" className="flex items-center gap-2">
-                  <Settings className="h-4 w-4" />
-                  Config
-                </TabsTrigger>
-                <TabsTrigger value="users" className="flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  Users
-                </TabsTrigger>
-              </TabsList>
+      {/* Main Header with Primary Tabs - Centered */}
+      <div className="flex flex-col h-full w-full">
+        <div className="bg-white border-b border-slate-200 px-6 py-4">
+          <div className="flex justify-center">
+            <div className="grid w-full grid-cols-3 max-w-md bg-muted rounded-md p-1">
+              <button
+                onClick={() => setActiveTab('interface')}
+                className={`flex items-center justify-center gap-2 rounded-sm px-4 py-2.5 text-base font-medium transition-all ${
+                  activeTab === 'interface'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <MessageSquare className="h-4 w-4" />
+                Interface
+              </button>
+              <button
+                onClick={() => setActiveTab('config')}
+                className={`flex items-center justify-center gap-2 rounded-sm px-4 py-2.5 text-base font-medium transition-all ${
+                  activeTab === 'config'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Settings className="h-4 w-4" />
+                Config
+              </button>
+              <button
+                onClick={() => setActiveTab('users')}
+                className={`flex items-center justify-center gap-2 rounded-sm px-4 py-2.5 text-base font-medium transition-all ${
+                  activeTab === 'users'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Users className="h-4 w-4" />
+                Users
+              </button>
             </div>
           </div>
+        </div>
 
-          <div className="flex flex-1 overflow-hidden">
-            {/* Interface Tab with Sidebar */}
-            <TabsContent value="interface" className="m-0 h-full w-full flex">
+        <div className="flex-1 overflow-hidden">
+          {/* Interface Tab with Sidebar */}
+          {activeTab === 'interface' && (
+            <div className="h-full w-full flex">
               {/* Sidebar */}
               <div className="w-80 bg-white border-r border-slate-200 flex flex-col">
                 <ChatSidebar 
@@ -205,28 +227,32 @@ const OpenWebUIInterface = () => {
                   </div>
                 </div>
               </div>
-            </TabsContent>
+            </div>
+          )}
 
-            {/* Config Tab without Sidebar - Fully Centered */}
-            <TabsContent value="config" className="m-0 h-full w-full overflow-auto bg-gradient-to-br from-slate-50 to-slate-100">
+          {/* Config Tab without Sidebar - Fully Centered */}
+          {activeTab === 'config' && (
+            <div className="h-full w-full overflow-auto bg-gradient-to-br from-slate-50 to-slate-100">
               <div className="h-full flex items-center justify-center">
                 <div className="w-full px-8">
                   <ConfigurationTabs />
                 </div>
               </div>
-            </TabsContent>
+            </div>
+          )}
 
-            {/* Users Tab without Sidebar - Fully Centered */}
-            <TabsContent value="users" className="m-0 h-full w-full overflow-auto bg-gradient-to-br from-slate-50 to-slate-100">
+          {/* Users Tab without Sidebar - Fully Centered */}
+          {activeTab === 'users' && (
+            <div className="h-full w-full overflow-auto bg-gradient-to-br from-slate-50 to-slate-100">
               <div className="h-full flex items-center justify-center">
                 <div className="w-full px-8">
                   <UserManagement />
                 </div>
               </div>
-            </TabsContent>
-          </div>
+            </div>
+          )}
         </div>
-      </Tabs>
+      </div>
     </div>
   );
 };
