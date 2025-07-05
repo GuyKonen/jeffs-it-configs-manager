@@ -1,5 +1,5 @@
+
 import React, { useState } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MessageSquare, Settings, Users, Cloud, Shield, Smartphone } from 'lucide-react';
 import ChatWindow from './chat/ChatWindow';
 import ChatSidebar from './chat/ChatSidebar';
@@ -190,30 +190,63 @@ const OpenWebUIInterface = () => {
                 <div className="h-full flex flex-col">
                   {/* Service Selection Tabs */}
                   <div className="bg-white border-b border-slate-200 px-6 py-4">
-                    <Tabs value={selectedService} onValueChange={setSelectedService} className="w-full">
-                      <TabsList className="grid w-full grid-cols-5">
-                        <TabsTrigger value="general" className="flex items-center gap-2">
-                          <MessageSquare className="h-4 w-4" />
-                          Chat
-                        </TabsTrigger>
-                        <TabsTrigger value="azure" className="flex items-center gap-2">
-                          <Cloud className="h-4 w-4" />
-                          Azure
-                        </TabsTrigger>
-                        <TabsTrigger value="okta" className="flex items-center gap-2">
-                          <Shield className="h-4 w-4" />
-                          Okta
-                        </TabsTrigger>
-                        <TabsTrigger value="intune" className="flex items-center gap-2">
-                          <Smartphone className="h-4 w-4" />
-                          Intune
-                        </TabsTrigger>
-                        <TabsTrigger value="activedirectory" className="flex items-center gap-2">
-                          <Users className="h-4 w-4" />
-                          Active Directory
-                        </TabsTrigger>
-                      </TabsList>
-                    </Tabs>
+                    <div className="grid w-full grid-cols-5 gap-2">
+                      <button
+                        onClick={() => setSelectedService('general')}
+                        className={`flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                          selectedService === 'general'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80'
+                        }`}
+                      >
+                        <MessageSquare className="h-4 w-4" />
+                        Chat
+                      </button>
+                      <button
+                        onClick={() => setSelectedService('azure')}
+                        className={`flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                          selectedService === 'azure'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80'
+                        }`}
+                      >
+                        <Cloud className="h-4 w-4" />
+                        Azure
+                      </button>
+                      <button
+                        onClick={() => setSelectedService('okta')}
+                        className={`flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                          selectedService === 'okta'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80'
+                        }`}
+                      >
+                        <Shield className="h-4 w-4" />
+                        Okta
+                      </button>
+                      <button
+                        onClick={() => setSelectedService('intune')}
+                        className={`flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                          selectedService === 'intune'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80'
+                        }`}
+                      >
+                        <Smartphone className="h-4 w-4" />
+                        Intune
+                      </button>
+                      <button
+                        onClick={() => setSelectedService('activedirectory')}
+                        className={`flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                          selectedService === 'activedirectory'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80'
+                        }`}
+                      >
+                        <Users className="h-4 w-4" />
+                        Active Directory
+                      </button>
+                    </div>
                   </div>
                   
                   {/* Chat Interface */}
@@ -230,24 +263,20 @@ const OpenWebUIInterface = () => {
             </div>
           )}
 
-          {/* Config Tab without Sidebar - Fully Centered */}
+          {/* Config Tab - Full width with proper padding from top */}
           {activeTab === 'config' && (
             <div className="h-full w-full overflow-auto bg-gradient-to-br from-slate-50 to-slate-100">
-              <div className="h-full flex items-center justify-center">
-                <div className="w-full px-8">
-                  <ConfigurationTabs />
-                </div>
+              <div className="w-full max-w-6xl mx-auto p-8">
+                <ConfigurationTabs />
               </div>
             </div>
           )}
 
-          {/* Users Tab without Sidebar - Fully Centered */}
+          {/* Users Tab - Positioned at the top */}
           {activeTab === 'users' && (
             <div className="h-full w-full overflow-auto bg-gradient-to-br from-slate-50 to-slate-100">
-              <div className="h-full flex items-center justify-center">
-                <div className="w-full px-8">
-                  <UserManagement />
-                </div>
+              <div className="w-full max-w-6xl mx-auto p-8">
+                <UserManagement />
               </div>
             </div>
           )}

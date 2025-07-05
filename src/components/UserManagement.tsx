@@ -11,7 +11,6 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Users, Plus, Edit, Trash2, Shield, Key, Crown, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { database } from '@/utils/database';
 
 interface User {
   id: string;
@@ -47,15 +46,21 @@ const UserManagement = () => {
 
   const loadUsers = async () => {
     try {
-      console.log('CLIENT: Loading users...');
-      const usersData = await database.getAllUsers() as User[];
+      console.log('CLIENT: Loading users from backend...');
+      const response = await fetch('http://localhost:3001/api/users');
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const usersData = await response.json();
       console.log('CLIENT: Loaded users:', usersData);
       setUsers(usersData);
     } catch (error) {
       console.error('CLIENT: Error loading users:', error);
       toast({
         title: "Error",
-        description: "Failed to load users.",
+        description: "Failed to load users from backend.",
         variant: "destructive",
       });
     } finally {
@@ -69,42 +74,37 @@ const UserManagement = () => {
     try {
       console.log('CLIENT: Creating user with data:', formData);
       
-      // First create the user
-      const newUser = await database.createUser(formData);
-      console.log('CLIENT: User created successfully:', newUser);
+      const response = await fetch('http://localhost:3001/api/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
       
-      // Load users to refresh the list
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create user');
+      }
+      
+      const result = await response.json();
+      console.log('CLIENT: User created successfully:', result);
+      
+      // Reload users to refresh the list
       await loadUsers();
       
-      // Find the newly created user to get its ID
-      const createdUser = users.find(u => u.username === formData.username);
-      console.log('CLIENT: Found created user:', createdUser);
+      setShowCreateDialog(false);
+      setFormData({ username: '', password: '', role: 'user', is_active: true });
       
-      if (createdUser) {
-        // Automatically setup TOTP for the new user
-        await setupTotpForUser(createdUser.id);
-        setShowCreateDialog(false);
-        setFormData({ username: '', password: '', role: 'user', is_active: true });
-        
-        toast({
-          title: "User Created",
-          description: "User created successfully. Please set up TOTP authentication.",
-        });
-      } else {
-        console.log('CLIENT: Could not find newly created user, proceeding without TOTP setup');
-        setShowCreateDialog(false);
-        setFormData({ username: '', password: '', role: 'user', is_active: true });
-        
-        toast({
-          title: "User Created",
-          description: "User created successfully.",
-        });
-      }
+      toast({
+        title: "User Created",
+        description: "User created successfully.",
+      });
     } catch (error) {
       console.error('CLIENT: Error creating user:', error);
       toast({
         title: "Error",
-        description: "Failed to create user.",
+        description: error instanceof Error ? error.message : "Failed to create user.",
         variant: "destructive",
       });
     }
@@ -194,7 +194,19 @@ const UserManagement = () => {
 
     try {
       console.log('CLIENT: Updating user:', editingUser.id, formData);
-      await database.updateUser(editingUser.id, formData);
+      const response = await fetch(`http://localhost:3001/api/users/${editingUser.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update user');
+      }
+      
       await loadUsers();
       setEditingUser(null);
       setFormData({ username: '', password: '', role: 'user', is_active: true });
@@ -207,7 +219,7 @@ const UserManagement = () => {
       console.error('CLIENT: Error updating user:', error);
       toast({
         title: "Error",
-        description: "Failed to update user.",
+        description: error instanceof Error ? error.message : "Failed to update user.",
         variant: "destructive",
       });
     }
@@ -216,7 +228,15 @@ const UserManagement = () => {
   const handleDeleteUser = async (userId: string) => {
     try {
       console.log('CLIENT: Deleting user:', userId);
-      await database.deleteUser(userId);
+      const response = await fetch(`http://localhost:3001/api/users/${userId}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete user');
+      }
+      
       await loadUsers();
       
       toast({
@@ -227,7 +247,7 @@ const UserManagement = () => {
       console.error('CLIENT: Error deleting user:', error);
       toast({
         title: "Error",
-        description: "Failed to delete user.",
+        description: error instanceof Error ? error.message : "Failed to delete user.",
         variant: "destructive",
       });
     }
@@ -244,7 +264,14 @@ const UserManagement = () => {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center p-8">Loading users...</div>;
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading users...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -366,7 +393,7 @@ const UserManagement = () => {
           <DialogHeader>
             <DialogTitle>{editingUser ? 'Edit User' : 'Create New User'}</DialogTitle>
             <DialogDescription>
-              {editingUser ? 'Update user information' : 'Add a new user to the system. TOTP will be set up automatically.'}
+              {editingUser ? 'Update user information' : 'Add a new user to the system. TOTP can be set up after creation.'}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={editingUser ? handleUpdateUser : handleCreateUser} className="space-y-4">
