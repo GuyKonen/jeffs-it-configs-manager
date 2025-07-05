@@ -83,13 +83,19 @@ const Auth = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-6">
       <div className="w-full max-w-md">
         {/* Header */}
-        <div className="text-center space-y-4 mb-8">
-          <div className="flex items-center justify-center space-x-3">
-            <div className="p-3 bg-primary rounded-full">
-              <img src="/lovable-uploads/414ac00c-0904-438a-b9cc-96ba875719a0.png" alt="Company Logo" className="h-8 w-8" />
-            </div>
-            <h1 className="text-3xl font-bold text-slate-800">JeffFromIT</h1>
+        <div className="text-center space-y-6 mb-8">
+          {/* New Logo */}
+          <div className="flex justify-center">
+            <img 
+              src="/lovable-uploads/2d6368a7-b76b-45b7-835c-cd9e813aa6bc.png" 
+              alt="JeffFromIT Logo" 
+              className="w-48 h-48 object-contain"
+            />
           </div>
+          
+          {/* Title without small logo */}
+          <h1 className="text-3xl font-bold text-slate-800">JeffFromIT</h1>
+          
           <p className="text-slate-600">
             Sign in to access your IT configuration dashboard
           </p>

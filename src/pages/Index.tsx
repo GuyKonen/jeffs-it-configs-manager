@@ -25,10 +25,7 @@ const Index = () => {
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-3">
-              <img src="/lovable-uploads/414ac00c-0904-438a-b9cc-96ba875719a0.png" alt="JeffFromIT" className="h-8 w-8" />
-              <h1 className="text-2xl font-bold text-slate-800">JeffFromIT</h1>
-            </div>
+            <h1 className="text-2xl font-bold text-slate-800">JeffFromIT</h1>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-slate-600">Welcome, {user.username}</span>
               <Button onClick={signOut} variant="outline" size="sm">
