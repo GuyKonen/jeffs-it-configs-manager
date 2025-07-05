@@ -25,6 +25,7 @@ const ChatInput = ({ onMessageSent }: ChatInputProps) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'X-User-ID': 'web_user',
         },
         body: JSON.stringify({ message: userMessage }),
         mode: 'cors',

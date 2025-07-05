@@ -46,6 +46,7 @@ const OpenWebUIInterface = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'X-User-ID': 'web_user',
         },
         body: JSON.stringify({ message }),
       });
@@ -59,7 +60,7 @@ const OpenWebUIInterface = () => {
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'assistant' as const,
-        content: data.response || 'No response received',
+        content: data.output || data.response || 'No response received',
         timestamp: new Date()
       };
       
