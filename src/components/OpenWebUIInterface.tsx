@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MessageSquare, Settings, Users, Cloud, Shield, Smartphone } from 'lucide-react';
@@ -208,19 +207,19 @@ const OpenWebUIInterface = () => {
               </div>
             </TabsContent>
 
-            {/* Config Tab without Sidebar - Properly Centered */}
+            {/* Config Tab without Sidebar - Fully Centered */}
             <TabsContent value="config" className="m-0 h-full w-full overflow-auto bg-gradient-to-br from-slate-50 to-slate-100">
-              <div className="min-h-full flex items-start justify-center py-8">
-                <div className="w-full max-w-4xl px-6">
+              <div className="h-full flex items-center justify-center">
+                <div className="w-full px-8">
                   <ConfigurationTabs />
                 </div>
               </div>
             </TabsContent>
 
-            {/* Users Tab without Sidebar - Properly Centered */}
+            {/* Users Tab without Sidebar - Fully Centered */}
             <TabsContent value="users" className="m-0 h-full w-full overflow-auto bg-gradient-to-br from-slate-50 to-slate-100">
-              <div className="min-h-full flex items-start justify-center py-8">
-                <div className="w-full max-w-4xl px-6">
+              <div className="h-full flex items-center justify-center">
+                <div className="w-full px-8">
                   <UserManagement />
                 </div>
               </div>
